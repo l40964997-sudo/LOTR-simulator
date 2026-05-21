@@ -122,6 +122,10 @@ public final class UnitFactory {
     /**
      * Helper around {@link Random#nextInt(int)} that returns a value in
      * {@code [low, high)}.
+     *
+     * @param low the inclusive lower bound
+     * @param high the exclusive upper bound
+     * @return a random value in the range
      */
     private int randomInRange(int low, int high) {
         return low + random.nextInt(Math.max(1, high - low));

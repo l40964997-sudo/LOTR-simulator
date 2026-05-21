@@ -96,6 +96,12 @@ public class JsonReader {
 
     /* ===================== Graph reconstruction ===================== */
 
+    /**
+     * Builds the graph from the parsed root object.
+     *
+     * @param rootMap the parsed top-level JSON object
+     * @return the reconstructed graph
+     */
     private Graph buildGraph(Map<String, Object> rootMap) {
         Graph graph = new Graph();
         Map<Integer, Node> byOldId = new HashMap<>();

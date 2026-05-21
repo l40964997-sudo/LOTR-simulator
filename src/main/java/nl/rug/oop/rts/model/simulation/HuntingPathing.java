@@ -59,6 +59,8 @@ public class HuntingPathing implements PathingStrategy {
      * BFS from {@code start} that returns the first edge of the shortest
      * path to a node hosting an enemy army.
      *
+     * @param me the army doing the searching
+     * @param start the node the search begins from
      * @return the first edge to take, or {@code null} when no enemy is reachable
      */
     private Edge findFirstStepTowardsEnemy(Army me, Node start) {

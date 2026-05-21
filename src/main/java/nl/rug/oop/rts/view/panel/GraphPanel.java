@@ -2,7 +2,6 @@ package nl.rug.oop.rts.view.panel;
 
 import nl.rug.oop.rts.controller.EditorContext;
 import nl.rug.oop.rts.controller.mouse.GraphMouseHandler;
-import nl.rug.oop.rts.model.graph.Graph;
 import nl.rug.oop.rts.view.renderer.GraphRenderer;
 
 import javax.swing.*;

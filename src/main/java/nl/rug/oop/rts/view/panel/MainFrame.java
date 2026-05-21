@@ -72,6 +72,8 @@ public class MainFrame extends JFrame {
 
     /**
      * Builds the top toolbar.
+     *
+     * @return the assembled toolbar
      */
     private JToolBar buildToolBar() {
         JToolBar bar = new JToolBar();
@@ -102,6 +104,8 @@ public class MainFrame extends JFrame {
 
     /**
      * Swaps the entire editor context to host a newly loaded graph.
+     *
+     * @param loaded the freshly deserialised graph
      */
     private void replaceGraph(Graph loaded) {
         if (loaded == null) {
@@ -149,6 +153,11 @@ public class MainFrame extends JFrame {
         /** Whether a flush has already been scheduled. */
         private boolean scheduled;
 
+        /**
+         * Constructs the reporter bound to its owning frame.
+         *
+         * @param owner the frame used as the dialog parent
+         */
         BatchedReporter(MainFrame owner) {
             this.ownerRef = new java.lang.ref.WeakReference<>(owner);
         }

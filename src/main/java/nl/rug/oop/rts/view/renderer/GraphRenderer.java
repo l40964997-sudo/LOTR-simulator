@@ -7,9 +7,12 @@ import nl.rug.oop.rts.model.graph.Graph;
 import nl.rug.oop.rts.model.graph.Node;
 import nl.rug.oop.rts.util.TextureLoader;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Stateless drawing helper that paints a {@link Graph} on a Swing
@@ -62,6 +65,35 @@ public class GraphRenderer {
     /** Shared texture loader. */
     private final TextureLoader textures = TextureLoader.getInstance();
 
+    /** Cache of fully-decoded sprites, keyed by name and size. */
+    private final Map<String, Image> spriteCache = new HashMap<>();
+
+    /**
+     * Returns a fully-loaded sprite for the given texture key and size.
+     *
+     * <p>The course texture loader hands back images produced by
+     * {@code getScaledInstance}, which decode asynchronously; drawing one
+     * immediately can paint nothing. Wrapping it in an {@link ImageIcon}
+     * forces synchronous loading via a media tracker, after which the image
+     * is safe to draw. Results are cached so this cost is paid once per
+     * key and size.</p>
+     *
+     * @param key the texture key understood by the loader
+     * @param size the square size in pixels
+     * @return a decoded image ready to draw
+     */
+    private Image sprite(String key, int size) {
+        String cacheKey = key + "@" + size;
+        Image cached = spriteCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        Image raw = textures.getTexture(key, size, size);
+        Image ready = new ImageIcon(raw).getImage();
+        spriteCache.put(cacheKey, ready);
+        return ready;
+    }
+
     /**
      * Paints the entire graph.
      *
@@ -99,7 +131,7 @@ public class GraphRenderer {
      * @param height the panel height
      */
     private void paintBackground(Graphics2D g2, int width, int height) {
-        Image tile = textures.getTexture("mapTexture", MAP_TILE, MAP_TILE);
+        Image tile = sprite("mapTexture", MAP_TILE);
         for (int x = 0; x < width; x += MAP_TILE) {
             for (int y = 0; y < height; y += MAP_TILE) {
                 g2.drawImage(tile, x, y, null);
@@ -198,8 +230,8 @@ public class GraphRenderer {
         String key = holder != null
                 ? "fortress" + holder.textureKey()
                 : "node" + (node.getId() % 4 + 1);
-        Image sprite = textures.getTexture(key, diameter, diameter);
-        g2.drawImage(sprite, x - NODE_RADIUS, y - NODE_RADIUS, null);
+        Image base = sprite(key, diameter);
+        g2.drawImage(base, x - NODE_RADIUS, y - NODE_RADIUS, null);
     }
 
     /**
@@ -271,7 +303,7 @@ public class GraphRenderer {
      * @param chip the chip size in pixels
      */
     private void drawArmyChip(Graphics2D g2, Army army, int x, int y, int chip) {
-        Image emblem = textures.getTexture("faction" + army.getFaction().textureKey(), chip, chip);
+        Image emblem = sprite("faction" + army.getFaction().textureKey(), chip);
         g2.drawImage(emblem, x, y, null);
         String count = String.valueOf(army.size());
         g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 11f));
@@ -293,7 +325,7 @@ public class GraphRenderer {
      */
     private void drawClash(Graphics2D g2, int x, int y) {
         int size = NODE_RADIUS * 2;
-        Image clash = textures.getTexture("flash", size, size);
+        Image clash = sprite("flash", size);
         g2.drawImage(clash, x - size / 2, y - size / 2, null);
     }
 

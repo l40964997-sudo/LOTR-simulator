@@ -61,6 +61,14 @@ public enum Faction {
     /** The unit names this faction is allowed to field. */
     private final List<String> unitNames;
 
+    /**
+     * Constructs a faction constant.
+     *
+     * @param displayName the user facing name
+     * @param team the team id this faction belongs to
+     * @param color the rendering colour
+     * @param unitNames the unit names this faction may field
+     */
     Faction(String displayName, int team, Color color, String... unitNames) {
         this.displayName = displayName;
         this.team = team;

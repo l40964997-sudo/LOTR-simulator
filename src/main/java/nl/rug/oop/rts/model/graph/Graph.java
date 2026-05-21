@@ -162,6 +162,8 @@ public class Graph extends Observable {
 
     /**
      * Internal edge removal that does not fire a notification.
+     *
+     * @param edge the edge to remove
      */
     private void removeEdgeInternal(Edge edge) {
         edge.getNodeA().detachEdge(edge);

@@ -189,6 +189,8 @@ public class Simulator {
 
     /**
      * Resolves potential battles on every supplied location.
+     *
+     * @param locations the locations to check for battles
      */
     private void resolveBattlesEverywhere(List<? extends MapElement> locations) {
         for (MapElement location : new ArrayList<>(locations)) {
@@ -209,6 +211,9 @@ public class Simulator {
     /**
      * Iterates locations and groups them by element, retaining only those
      * that actually have armies on them.
+     *
+     * @param locations the locations to inspect
+     * @return a map from active location to a snapshot of its armies
      */
     private Map<MapElement, List<Army>> collectActiveLocations(List<? extends MapElement> locations) {
         Map<MapElement, List<Army>> out = new HashMap<>();
@@ -283,6 +288,8 @@ public class Simulator {
 
     /**
      * Convenience that funnels a narrative string to the reporter, when set.
+     *
+     * @param message the narrative text to report
      */
     private void report(String message) {
         if (reporter != null && message != null && !message.isBlank()) {

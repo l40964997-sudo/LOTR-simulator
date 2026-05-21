@@ -163,6 +163,13 @@ public class GraphMouseHandler extends MouseInputAdapter {
 
     /* ===================== Hit testing ===================== */
 
+    /**
+     * Finds the top-most node containing a world point, if any.
+     *
+     * @param graph the graph to search
+     * @param world the world-space point
+     * @return the picked node, or {@code null}
+     */
     private Node pickNode(Graph graph, Point2D world) {
         // Iterate in reverse so visually top-most nodes are picked first.
         for (int i = graph.getNodes().size() - 1; i >= 0; i--) {
@@ -196,6 +203,14 @@ public class GraphMouseHandler extends MouseInputAdapter {
 
     /**
      * Computes the shortest distance from a point to a line segment.
+     *
+     * @param px the point x coordinate
+     * @param py the point y coordinate
+     * @param ax the segment start x coordinate
+     * @param ay the segment start y coordinate
+     * @param bx the segment end x coordinate
+     * @param by the segment end y coordinate
+     * @return the shortest distance from the point to the segment
      */
     private double distanceFromPointToSegment(double px, double py,
                                               double ax, double ay,

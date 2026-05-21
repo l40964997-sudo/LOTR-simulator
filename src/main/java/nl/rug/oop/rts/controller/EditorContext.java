@@ -36,8 +36,7 @@ public class EditorContext extends Observable {
     /** The simulator. */
     private final Simulator simulator;
 
-    /** Whether the editor is currently waiting for the second endpoint
-     *  of a new edge. */
+    /** Whether the editor is waiting for the second endpoint of a new edge. */
     private boolean addEdgeMode;
 
     /**

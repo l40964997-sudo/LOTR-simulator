@@ -105,6 +105,8 @@ public class JsonWriter {
 
     /**
      * Writes the top-level graph object.
+     *
+     * @param graph the graph to serialise
      */
     private void writeGraph(Graph graph) {
         writeLine("{");
@@ -347,6 +349,12 @@ public class JsonWriter {
 
     /* ===================== Low level helpers ===================== */
 
+    /**
+     * Writes a string key/value field.
+     *
+     * @param key the field name
+     * @param value the string value
+     */
     private void writeStringField(String key, String value) {
         writeIndent();
         buffer.append('"').append(escape(key)).append("\": \"")
