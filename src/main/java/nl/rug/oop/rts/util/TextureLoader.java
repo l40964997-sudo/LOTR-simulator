@@ -22,7 +22,7 @@ import java.util.Map;
  * The following is an example usage where we use the texture loader to retrieve
  * the image "images/factions/elves.pmg" with a size of 100x100:
  * </p>
- * 
+ *
  * <pre>
  * <code>
  *     TextureLoader.getInstance().getTexture("factionElves", 100, 100);
@@ -64,30 +64,23 @@ public class TextureLoader {
 
     /** Main instance for the singleton. */
     private static final TextureLoader INSTANCE = new TextureLoader();
-    /**
-     * Subdirectory name where all textures are stored.
-     */
+
+    /** Subdirectory name where all textures are stored. */
     private static final String TEXTURE_DIR = "images";
-    /**
-     * Subdirectory name where faction textures are stored.
-     */
+
+    /** Subdirectory name where faction textures are stored. */
     private static final String FACTION_SUB_DIR = "factions";
-    /**
-     * Subdirectory name where fortress textures are stored.
-     */
+
+    /** Subdirectory name where fortress textures are stored. */
     private static final String FORTRESS_SUB_DIR = "fortress";
-    /**
-     * Subdirectory name where map textures are stored.
-     */
+
+    /** Subdirectory name where map textures are stored. */
     private static final String MAP_SUB_DIR = "maps";
-    /**
-     * Subdirectory name where node textures are stored.
-     */
+
+    /** Subdirectory name where node textures are stored. */
     private static final String NODE_SUB_DIR = "nodes";
 
-    /**
-     * Subdirectory name where effects are stored.
-     */
+    /** Subdirectory name where effects are stored. */
     private static final String EFFECTS_SUB_DIR = "effects";
 
     /** A map of all the textures. */
