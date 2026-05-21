@@ -583,22 +583,4 @@ public class JsonReader {
             pos++;
         }
     }
-
-    /**
-     * Thrown when the input does not match the expected JSON grammar.
-     */
-    public static class JsonParseException extends RuntimeException {
-
-        /** Serialisation id. */
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * Constructs the exception with a descriptive message.
-         *
-         * @param message human readable diagnostic
-         */
-        public JsonParseException(String message) {
-            super(message);
-        }
-    }
 }

@@ -1,6 +1,7 @@
 package nl.rug.oop.rts.controller.action;
 
 import nl.rug.oop.rts.controller.EditorContext;
+import nl.rug.oop.rts.io.JsonParseException;
 import nl.rug.oop.rts.io.JsonReader;
 import nl.rug.oop.rts.io.JsonWriter;
 import nl.rug.oop.rts.model.graph.Graph;
@@ -133,7 +134,7 @@ public final class JsonIoActions {
                 graphReplacer.accept(loaded);
                 JOptionPane.showMessageDialog(owner,
                         "Loaded.", "Load successful", JOptionPane.INFORMATION_MESSAGE);
-            } catch (IOException | JsonReader.JsonParseException ex) {
+            } catch (IOException | JsonParseException ex) {
                 LOGGER.log(Level.WARNING, "Failed to load", ex);
                 JOptionPane.showMessageDialog(owner,
                         "Failed to load: " + ex.getMessage(),
