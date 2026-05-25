@@ -1,5 +1,6 @@
 package nl.rug.oop.rts.util;
 
+import lombok.Getter;
 import lombok.Setter;
 
 import javax.sound.sampled.AudioFormat;
@@ -39,15 +40,19 @@ import java.util.Random;
  * Sound output is best effort: when no audio device is available the
  * manager silently drops the request so callers stay free of try/catch noise.
  */
+@Getter
 @Setter
 public final class SoundManager {
 
     /** Singleton instance. */
     private static final SoundManager INSTANCE = new SoundManager();
 
+    /** Output sample rate. CD quality is overkill for beeps but easy. */
+    private static final float SAMPLE_RATE = 44_100f;
+
     /** PCM audio format used for the procedural synthesiser. */
     private static final AudioFormat FORMAT =
-            new AudioFormat(SoundSynthesizer.SAMPLE_RATE, 16, 1, true, false);
+            new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
 
     /** Classpath folder scanned for sound assets. */
     private static final String SOUND_DIR = "sounds";
@@ -87,7 +92,7 @@ public final class SoundManager {
      */
     private SoundManager() {
         for (Effect effect : Effect.values()) {
-            proceduralCache.put(effect, SoundSynthesizer.synthesise(effect));
+            proceduralCache.put(effect, synthesise(effect));
             String path = SOUND_DIR + "/" + effect.name().toLowerCase(Locale.ROOT) + ".wav";
             Clip clip = tryLoadClip(path, false);
             if (clip != null) {
@@ -115,21 +120,14 @@ public final class SoundManager {
     }
 
     /**
-     * Toggles the master sound switch. Disabling also stops the music
-     * loop; re-enabling restarts the playlist if one was running.
+     * Toggles the master effects switch. Music is controlled separately
+     * through {@link #startPlaylist()} / {@link #stopMusic()}, so flipping
+     * sound effects off no longer kills the background music.
      *
      * @param enabled the new state
      */
     public void setEnabled(boolean enabled) {
-        boolean hadPlaylist = !playlist.isEmpty();
         this.enabled = enabled;
-        if (!enabled) {
-            stopMusic();
-        } else if (hadPlaylist) {
-            playPlaylistTrack();
-        } else if (musicResource != null) {
-            playSingleLoop(musicResource);
-        }
     }
 
     /**
@@ -255,7 +253,7 @@ public final class SoundManager {
     public void playSingleLoop(String resourceName) {
         stopMusic();
         playlist.clear();
-        if (resourceName == null || !enabled) {
+        if (resourceName == null) {
             return;
         }
         Clip clip = tryLoadClip(SOUND_DIR + "/" + resourceName, true);
@@ -288,7 +286,7 @@ public final class SoundManager {
      */
     private void playPlaylistTrack() {
         stopMusic();
-        if (!enabled || playlist.isEmpty()) {
+        if (playlist.isEmpty()) {
             return;
         }
         String track = playlist.get(playlistIndex);
@@ -306,7 +304,7 @@ public final class SoundManager {
     }
 
     /**
-     * Adds a {@link LineEvent#STOP} listener that auto-advances to the
+     * Adds a listener that auto-advances to the
      * next playlist track when this clip ends naturally.
      *
      * @param clip the clip to monitor
@@ -364,15 +362,6 @@ public final class SoundManager {
         } catch (URISyntaxException ex) {
             return Collections.emptyList();
         }
-    }
-
-    /**
-     * Returns the linear music volume in {@code [0, 1]}.
-     *
-     * @return the current volume
-     */
-    public float getMusicVolume() {
-        return musicVolume;
     }
 
     /**
@@ -482,6 +471,102 @@ public final class SoundManager {
         } catch (LineUnavailableException ignored) {
             // Audio not available: silently drop the request.
         }
+    }
+
+    /**
+     * Synthesises an effect into raw little-endian 16-bit PCM bytes.
+     *
+     * @param effect the effect to render
+     * @return the rendered PCM data
+     */
+    private byte[] synthesise(Effect effect) {
+        switch (effect) {
+            case BATTLE_HORN: return tone(0.70, 220.0, 0.45);
+            case VICTORY: return chord(0.90, new double[] {523, 659, 784}, 0.40);
+            case DEFEAT: return tone(0.80, 110.0, 0.20);
+            case MARCH: return drumPattern(0.50);
+            case ACTION_CLICK: return tone(0.10, 880.0, 0.35);
+            case STEP: return tone(0.05, 1320.0, 0.25);
+            case AMBIENT: return tone(1.20, 165.0, 0.10);
+            default: return new byte[0];
+        }
+    }
+
+    /**
+     * Renders a steady sine wave with an exponential envelope.
+     *
+     * @param seconds duration in seconds
+     * @param frequency tone frequency in Hz
+     * @param volume peak amplitude in [0, 1]
+     * @return the PCM bytes
+     */
+    private byte[] tone(double seconds, double frequency, double volume) {
+        int samples = (int) (SAMPLE_RATE * seconds);
+        byte[] out = new byte[samples * 2];
+        for (int i = 0; i < samples; i++) {
+            double t = i / SAMPLE_RATE;
+            double envelope = Math.exp(-2.0 * t / seconds);
+            double sample = Math.sin(2 * Math.PI * frequency * t) * volume * envelope;
+            writeSample(out, i, sample);
+        }
+        return out;
+    }
+
+    /**
+     * Mixes a small chord made of independent sine partials.
+     *
+     * @param seconds duration in seconds
+     * @param frequencies the partial frequencies in Hz
+     * @param volume peak amplitude in [0, 1]
+     * @return the PCM bytes
+     */
+    private byte[] chord(double seconds, double[] frequencies, double volume) {
+        int samples = (int) (SAMPLE_RATE * seconds);
+        byte[] out = new byte[samples * 2];
+        double partVolume = volume / Math.max(1, frequencies.length);
+        for (int i = 0; i < samples; i++) {
+            double t = i / SAMPLE_RATE;
+            double envelope = Math.exp(-1.5 * t / seconds);
+            double sample = 0.0;
+            for (double f : frequencies) {
+                sample += Math.sin(2 * Math.PI * f * t) * partVolume * envelope;
+            }
+            writeSample(out, i, sample);
+        }
+        return out;
+    }
+
+    /**
+     * Renders a short repeating low thump to evoke marching feet.
+     *
+     * @param volume peak amplitude in [0, 1]
+     * @return the PCM bytes
+     */
+    private byte[] drumPattern(double volume) {
+        double seconds = 0.6;
+        int samples = (int) (SAMPLE_RATE * seconds);
+        byte[] out = new byte[samples * 2];
+        for (int i = 0; i < samples; i++) {
+            double t = i / SAMPLE_RATE;
+            double beat = ((int) (t * 4)) % 2 == 0 ? 1.0 : 0.0;
+            double envelope = Math.exp(-12.0 * (t - Math.floor(t * 4) / 4));
+            double sample = Math.sin(2 * Math.PI * 90.0 * t) * volume * beat * envelope;
+            writeSample(out, i, sample);
+        }
+        return out;
+    }
+
+    /**
+     * Encodes a normalised sample (-1..1) into a little-endian 16-bit slot.
+     *
+     * @param out destination buffer
+     * @param sampleIndex the sample index (the byte offset is {@code 2*sampleIndex})
+     * @param sample the normalised sample value
+     */
+    private void writeSample(byte[] out, int sampleIndex, double sample) {
+        int s = (int) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, sample * Short.MAX_VALUE));
+        out[sampleIndex * 2] = (byte) (s & 0xFF);
+        out[sampleIndex * 2 + 1] = (byte) ((s >> 8) & 0xFF);
     }
 
     /**

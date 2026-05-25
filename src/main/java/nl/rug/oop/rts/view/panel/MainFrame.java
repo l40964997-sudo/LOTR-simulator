@@ -118,6 +118,10 @@ public class MainFrame extends JFrame {
             boolean on = toggle.isSelected();
             SoundManager.getInstance().setEnabled(on);
             toggle.setText(on ? "Sound On" : "Sound Off");
+            if (on) {
+                // Audible confirmation that the audio pipeline works.
+                SoundManager.getInstance().play(SoundManager.Effect.BATTLE_HORN);
+            }
         });
         return toggle;
     }
