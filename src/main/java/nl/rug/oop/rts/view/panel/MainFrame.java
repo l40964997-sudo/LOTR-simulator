@@ -70,6 +70,7 @@ public class MainFrame extends JFrame {
         wireSimulatorReporter();
         installPlayerController();
         SoundManager.getInstance().play(SoundManager.Effect.AMBIENT);
+        SoundManager.getInstance().startPlaylist();
 
         pack();
         // Centre on the primary display.
@@ -100,6 +101,9 @@ public class MainFrame extends JFrame {
         bar.add(new JButton(new JsonIoActions.LoadAction(context, this::self, this::replaceGraph)));
         bar.addSeparator();
         bar.add(buildSoundToggle());
+        bar.add(buildMusicToggle());
+        bar.add(buildNextTrackButton());
+        bar.add(buildShuffleToggle());
         return bar;
     }
 
@@ -114,6 +118,51 @@ public class MainFrame extends JFrame {
             boolean on = toggle.isSelected();
             SoundManager.getInstance().setEnabled(on);
             toggle.setText(on ? "Sound On" : "Sound Off");
+        });
+        return toggle;
+    }
+
+    /**
+     * Builds the music-on/off toggle for the toolbar.
+     *
+     * @return the configured toggle button
+     */
+    private JToggleButton buildMusicToggle() {
+        JToggleButton toggle = new JToggleButton("Music On", true);
+        toggle.addActionListener(e -> {
+            if (toggle.isSelected()) {
+                SoundManager.getInstance().startPlaylist();
+                toggle.setText("Music On");
+            } else {
+                SoundManager.getInstance().stopMusic();
+                toggle.setText("Music Off");
+            }
+        });
+        return toggle;
+    }
+
+    /**
+     * Builds the "Next Track" button used to skip ahead in the playlist.
+     *
+     * @return the configured button
+     */
+    private JButton buildNextTrackButton() {
+        JButton next = new JButton("Next Track");
+        next.addActionListener(e -> SoundManager.getInstance().nextTrack());
+        return next;
+    }
+
+    /**
+     * Builds the shuffle toggle for the music playlist.
+     *
+     * @return the configured toggle button
+     */
+    private JToggleButton buildShuffleToggle() {
+        JToggleButton toggle = new JToggleButton("Shuffle Off", false);
+        toggle.addActionListener(e -> {
+            boolean on = toggle.isSelected();
+            SoundManager.getInstance().setShuffle(on);
+            toggle.setText(on ? "Shuffle On" : "Shuffle Off");
         });
         return toggle;
     }

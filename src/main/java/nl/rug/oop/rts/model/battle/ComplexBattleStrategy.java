@@ -59,6 +59,14 @@ public class ComplexBattleStrategy implements BattleStrategy {
         this.random = random;
     }
 
+    /**
+     * Resolves a battle between opposing armies at the given location.
+     * The combat is processed in phases: volley, charge, and melee.
+     *
+     * @param armies       The list of participating armies (must contain at least two distinct teams).
+     * @param locationName The name of the battlefield.
+     * @return The {@code BattleResult}, or {@code null} if the battle cannot occur (e.g., missing or invalid armies).
+     */
     @Override
     public BattleResult resolve(List<Army> armies, String locationName) {
         if (armies == null || armies.size() < 2) {
