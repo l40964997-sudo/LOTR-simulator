@@ -15,15 +15,17 @@ import nl.rug.oop.rts.model.simulation.Simulator;
  * a node selected, the flag is set; the next node click finalises the
  * edge; clicking the button again, or clicking empty space, cancels.
  * <p>
+ * The context also caches the {@link PlayerController} the simulator
+ * should call when a player-controlled army needs orders. Holding the
+ * reference here (rather than wiring it through the simulator constructor)
+ * keeps the view's setup code short - one call to
+ * {@link #installPlayerController(PlayerController)} after the frame has
+ * built its dialog factory.
+ * <p>
  * The context exposes itself as an {@link Observable} so the button
  * action panel can grey out controls based on the current state, and so
  * the renderer can hint the user (for example by highlighting the source
  * node) that they are now in edge-creation mode.
- * <p>
- * Centralising this state on a dedicated object - rather than
- * scattering booleans across the panel and the mouse handler -
- * keeps coupling low: the panel asks the context, the mouse handler asks
- * the context, neither has to know about the other.
  */
 public class EditorContext extends Observable {
 
@@ -80,6 +82,18 @@ public class EditorContext extends Observable {
      */
     public Simulator getSimulator() {
         return simulator;
+    }
+
+    /**
+     * Installs the {@link PlayerController} the simulator should call when
+     * a player-controlled army takes its turn. A {@code null} controller
+     * tells the simulator to fall back to AI behaviour even for
+     * player-flagged armies.
+     *
+     * @param controller the controller; may be {@code null}
+     */
+    public void installPlayerController(PlayerController controller) {
+        simulator.setPlayerController(controller);
     }
 
     /**

@@ -63,10 +63,12 @@ public class UnitInfoDialog extends JDialog {
                 "Immortal archers and lancers of Lothlorien, Mirkwood and Rivendell.");
         map.put(Faction.DWARVES,
                 "Stout warriors of Erebor and the Iron Hills, masters of axe and forge.");
+        map.put(Faction.HOBBITS,
+                "Halflings of the Shire: small, nimble, and surprisingly brave.");
         map.put(Faction.MORDOR,
-                "Orcs of Mordor and Haradrim of the south, sworn to the will of Sauron.");
+                "Orcs, Goblins, Trolls, and Men of Darkness, sworn to the will of Sauron.");
         map.put(Faction.ISENGARD,
-                "Saruman's Uruk-hai and Warg Riders, bred for war beneath Orthanc.");
+                "Saruman, his Uruk-hai, Warg Riders, and Uruk Crossbowmen of Orthanc.");
         return map;
     }
 
@@ -84,7 +86,7 @@ public class UnitInfoDialog extends JDialog {
         JLabel title = new JLabel(army.getName() + " - " + army.getFaction().getDisplayName());
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         header.add(title);
-        String teamName = army.getTeam() == Faction.TEAM_FREE_PEOPLES ? "Free Peoples" : "Shadow";
+        String teamName = army.getFaction().isFreePeople() ? "Free Peoples" : "Sauron's Servants";
         header.add(new JLabel("Team: " + teamName));
         header.add(Box.createVerticalStrut(4));
         header.add(new JLabel(formatStats(army)));
@@ -117,21 +119,35 @@ public class UnitInfoDialog extends JDialog {
         DefaultTableModel model = new NonEditableTableModel();
         int index = 1;
         for (Unit unit : army.getUnits()) {
+            String ability = unit.getAbilityDescription();
+            String status = unit.isAlive() ? "Alive" : "Defeated";
             model.addRow(new Object[] {index, unit.getName(), unit.getStrength(),
-                unit.getHealth(), unit.isAlive() ? "Alive" : "Defeated"});
+                unit.getHealth(), unit.getDefense(), formatEvasion(unit.getEvasion()),
+                status, ability});
             index++;
         }
         if (model.getRowCount() == 0) {
-            model.addRow(new Object[] {EMPTY_CELL, "(no units)", EMPTY_CELL, EMPTY_CELL, EMPTY_CELL});
+            model.addRow(new Object[] {EMPTY_CELL, "(no units)", EMPTY_CELL, EMPTY_CELL,
+                EMPTY_CELL, EMPTY_CELL, EMPTY_CELL, EMPTY_CELL});
         }
         JTable table = new JTable(model);
         table.setRowHeight(22);
         table.getColumnModel().getColumn(0).setMaxWidth(40);
         JScrollPane scroll = new JScrollPane(table,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setPreferredSize(new Dimension(460, 280));
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.setPreferredSize(new Dimension(620, 320));
         return scroll;
+    }
+
+    /**
+     * Formats an evasion probability as a friendly percentage.
+     *
+     * @param evasion the value in [0, 1]
+     * @return the formatted percentage string
+     */
+    private String formatEvasion(double evasion) {
+        return String.format("%.0f%%", evasion * 100);
     }
 
     /**
@@ -168,7 +184,8 @@ public class UnitInfoDialog extends JDialog {
          * Constructs the model with the fixed column headers.
          */
         private NonEditableTableModel() {
-            super(new Object[] {"#", "Name", "Strength", "Health", "Status"}, 0);
+            super(new Object[] {"#", "Name", "Strength", "Health", "Defense",
+                "Evasion", "Status", "Ability"}, 0);
         }
 
         /**

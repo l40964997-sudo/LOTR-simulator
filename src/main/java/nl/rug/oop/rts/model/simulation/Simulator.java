@@ -1,59 +1,69 @@
 package nl.rug.oop.rts.model.simulation;
 
+import nl.rug.oop.rts.controller.PlayerController;
+import nl.rug.oop.rts.controller.PlayerOrder;
+import nl.rug.oop.rts.model.army.ActionExecutor;
 import nl.rug.oop.rts.model.army.Army;
+import nl.rug.oop.rts.model.army.ArmyAction;
 import nl.rug.oop.rts.model.battle.BattleResult;
 import nl.rug.oop.rts.model.battle.BattleStrategy;
-import nl.rug.oop.rts.model.battle.StandardBattleStrategy;
+import nl.rug.oop.rts.model.battle.ComplexBattleStrategy;
 import nl.rug.oop.rts.model.event.GameEvent;
 import nl.rug.oop.rts.model.graph.Edge;
 import nl.rug.oop.rts.model.graph.Graph;
 import nl.rug.oop.rts.model.graph.MapElement;
 import nl.rug.oop.rts.model.graph.Node;
+import nl.rug.oop.rts.util.SoundManager;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
  * Executes a single simulation step against a {@link Graph}.
  * <p>
- * A step has seven phases, in order:
+ * A step now has eight phases, in order:
  * <ol>
- *   <li>resolve any battles on the starting nodes;</li>
- *   <li>move every army to a random outgoing edge of its current node;</li>
+ *   <li>resolve any battles already on the starting nodes;</li>
+ *   <li>collect a per-army order (random AI roll or player-issued) and
+ *       apply each action's immediate side effects;</li>
+ *   <li>move every movement-permitting army along its chosen edge;</li>
  *   <li>resolve any battles that ensue on the edges;</li>
- *   <li>trigger one random event per army on its edge (50% chance of nothing);</li>
- *   <li>move every army to the opposite endpoint of its edge;</li>
+ *   <li>trigger one random event per army on its edge;</li>
+ *   <li>move surviving armies off their edge onto the opposite node;</li>
  *   <li>resolve any battles on those destination nodes;</li>
  *   <li>trigger one random event per army on the destination node.</li>
  * </ol>
- * The simulator does <em>not</em> mutate selection state and does not know
- * about the view: it talks to the model and reports back through
- * {@link Graph#fireSimulationStepped()} once the step is done.
- * <p>
- * Battle and pathing decisions are pluggable through the constructor,
- * keeping coupling between this class and the algorithmic details low.
- * Test runs of the program inject a deterministic {@link Random} to make
- * the otherwise stochastic behaviour reproducible.
+ * Pathing, battle and action behaviour are all pluggable; the default
+ * wiring uses {@link SmartPathing}, {@link ComplexBattleStrategy} and a
+ * fresh {@link ActionExecutor}.
  */
 public class Simulator {
 
-    /** The graph being simulated. */
-    private final Graph graph;
-
-    /** Strategy used to resolve battles. */
-    private final BattleStrategy battleStrategy;
-
-    /** Strategy used to pick an outgoing edge. */
-    private final PathingStrategy pathingStrategy;
-
-    /** Random source for event triggering. */
-    private final Random random;
-
-    /** Reporter for narrative events and battles. The view subscribes to it. */
-    private Consumer<String> reporter;
-
     /** Probability that an army encounters NO event when it has the chance. */
     private static final double NO_EVENT_PROBABILITY = 0.5;
+
+    /** The graph being simulated. */
+    private final Graph graph;
+    /** Strategy used to resolve battles. */
+    private final BattleStrategy battleStrategy;
+    /** Strategy used to pick an outgoing edge. */
+    private final PathingStrategy pathingStrategy;
+    /** Action roller used for AI-controlled armies. */
+    private final ActionExecutor actionExecutor;
+    /** Random source for event triggering. */
+    private final Random random;
+    /** Reporter for narrative events and battles. The view subscribes to it. */
+    private Consumer<String> reporter;
+    /** Player controller consulted for player-flagged armies; may be null. */
+    private PlayerController playerController;
+    /** Edges chosen by the player this turn, consulted in the move phase. */
+    private final Map<Army, Edge> playerEdges = new IdentityHashMap<>();
 
     /**
      * Convenience constructor wiring up the default strategies.
@@ -61,7 +71,7 @@ public class Simulator {
      * @param graph the graph to simulate; must not be {@code null}
      */
     public Simulator(Graph graph) {
-        this(graph, new StandardBattleStrategy(), new RandomPathing(), new Random());
+        this(graph, new ComplexBattleStrategy(), new SmartPathing(), new Random());
     }
 
     /**
@@ -81,35 +91,45 @@ public class Simulator {
         this.battleStrategy = battleStrategy;
         this.pathingStrategy = pathingStrategy;
         this.random = random;
+        this.actionExecutor = new ActionExecutor(random);
     }
 
     /**
-     * Sets the reporter used to surface battle and event narratives. The
-     * controller typically points this at a popup dialog. Pass {@code null}
-     * to silence reporting.
+     * Sets the reporter used to surface battle and event narratives.
      *
-     * @param reporter a sink for narrative strings
+     * @param reporter a sink for narrative strings; {@code null} silences it
      */
     public void setReporter(Consumer<String> reporter) {
         this.reporter = reporter;
     }
 
-    /* ===================== Public API ===================== */
+    /**
+     * Installs the player controller queried for player-flagged armies.
+     *
+     * @param playerController the controller; {@code null} disables it
+     */
+    public void setPlayerController(PlayerController playerController) {
+        this.playerController = playerController;
+    }
 
     /**
-     * Executes one simulation step across all seven phases.
+     * Executes one simulation step across every phase.
      */
     public void simulateStep() {
         resolveBattlesEverywhere(graph.getNodes());
         Map<Army, Node> originNodes = snapshotArmyOrigins();
-        Map<Army, Edge> chosenEdges = moveArmiesToEdges(originNodes);
+        Map<Army, ArmyAction> orders = collectOrders(originNodes);
+        executeActions(orders, originNodes);
+        Map<Army, Edge> chosenEdges = moveArmiesToEdges(originNodes, orders);
         resolveBattlesEverywhere(graph.getEdges());
         triggerArrivedEvents(graph.getEdges(), chosenEdges.keySet());
         Map<Army, Node> destinations = moveArmiesToNodes(originNodes, chosenEdges);
+        handleForcedMarch(orders, destinations);
         resolveBattlesEverywhere(graph.getNodes());
         triggerArrivedEvents(graph.getNodes(), destinations.keySet());
         purgeDefeatedArmies();
         graph.fireSimulationStepped();
+        SoundManager.getInstance().play(SoundManager.Effect.MARCH);
     }
 
     /**
@@ -128,25 +148,91 @@ public class Simulator {
     }
 
     /**
+     * Collects one action order per army; player armies block on the
+     * controller and the resulting edge is stashed for the move phase.
+     *
+     * @param originNodes the army to origin-node mapping
+     * @return the chosen action per army
+     */
+    private Map<Army, ArmyAction> collectOrders(Map<Army, Node> originNodes) {
+        Map<Army, ArmyAction> orders = new IdentityHashMap<>();
+        playerEdges.clear();
+        for (Map.Entry<Army, Node> entry : originNodes.entrySet()) {
+            Army army = entry.getKey();
+            Node origin = entry.getValue();
+            if (army.isPlayerControlled() && playerController != null) {
+                PlayerOrder order = playerController.requestOrder(army, origin);
+                if (order != null) {
+                    orders.put(army, order.getAction());
+                    if (order.getEdge() != null) {
+                        playerEdges.put(army, order.getEdge());
+                    }
+                    continue;
+                }
+            }
+            orders.put(army, actionExecutor.pickRandomAction());
+        }
+        return orders;
+    }
+
+    /**
+     * Applies the side effects of each army's action.
+     *
+     * @param orders the per-army action map
+     * @param originNodes the army origin node map
+     */
+    private void executeActions(Map<Army, ArmyAction> orders, Map<Army, Node> originNodes) {
+        for (Map.Entry<Army, ArmyAction> entry : orders.entrySet()) {
+            Army army = entry.getKey();
+            ArmyAction action = entry.getValue();
+            String line = actionExecutor.execute(army, action, originNodes.get(army));
+            report(line);
+            SoundManager.getInstance().play(SoundManager.Effect.ACTION_CLICK);
+        }
+        graph.fireArmyChanged();
+    }
+
+    /**
      * Moves each army from its origin node onto a chosen incident edge.
      *
      * @param originNodes the army to origin-node mapping
+     * @param orders the per-army action map (skips static actions)
      * @return an identity map from army to the edge it moved onto
      */
-    private Map<Army, Edge> moveArmiesToEdges(Map<Army, Node> originNodes) {
+    private Map<Army, Edge> moveArmiesToEdges(Map<Army, Node> originNodes,
+                                              Map<Army, ArmyAction> orders) {
         Map<Army, Edge> chosenEdges = new IdentityHashMap<>();
         for (Map.Entry<Army, Node> entry : originNodes.entrySet()) {
             Army army = entry.getKey();
-            Node from = entry.getValue();
-            Edge picked = pathingStrategy.selectNextEdge(army, from, from.getEdges());
+            ArmyAction action = orders.get(army);
+            if (!actionExecutor.permitsMovement(action)) {
+                continue;
+            }
+            Edge picked = pickEdgeFor(army, entry.getValue());
             if (picked == null) {
                 continue;
             }
-            from.removeArmy(army);
+            entry.getValue().removeArmy(army);
             picked.addArmy(army);
             chosenEdges.put(army, picked);
         }
         return chosenEdges;
+    }
+
+    /**
+     * Picks an outgoing edge for an army, honouring the player's explicit
+     * choice when one is recorded for this turn.
+     *
+     * @param army the army being routed
+     * @param from the army's current node
+     * @return the chosen edge, or {@code null} when none is available
+     */
+    private Edge pickEdgeFor(Army army, Node from) {
+        Edge playerPick = playerEdges.get(army);
+        if (playerPick != null && from.getEdges().contains(playerPick)) {
+            return playerPick;
+        }
+        return pathingStrategy.selectNextEdge(army, from, from.getEdges());
     }
 
     /**
@@ -174,18 +260,36 @@ public class Simulator {
     }
 
     /**
+     * For every army whose order was a forced march, take a second step.
+     *
+     * @param orders the per-army action map
+     * @param destinations the destination map produced by the first move
+     */
+    private void handleForcedMarch(Map<Army, ArmyAction> orders, Map<Army, Node> destinations) {
+        Map<Army, Node> origins = new IdentityHashMap<>();
+        for (Map.Entry<Army, Node> entry : destinations.entrySet()) {
+            if (actionExecutor.doublesMovement(orders.get(entry.getKey()))) {
+                origins.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (origins.isEmpty()) {
+            return;
+        }
+        Map<Army, Edge> second = moveArmiesToEdges(origins, orders);
+        Map<Army, Node> finalDest = moveArmiesToNodes(origins, second);
+        destinations.putAll(finalDest);
+    }
+
+    /**
      * Triggers events on the given locations for the armies that arrived.
      *
      * @param locations the locations to inspect
      * @param arrived the armies that moved this phase
      */
-    private void triggerArrivedEvents(List<? extends MapElement> locations,
-                                      java.util.Set<Army> arrived) {
+    private void triggerArrivedEvents(List<? extends MapElement> locations, Set<Army> arrived) {
         Map<MapElement, List<Army>> active = collectActiveLocations(locations);
         triggerEvents(active, arrived);
     }
-
-    /* ===================== Private helpers ===================== */
 
     /**
      * Resolves potential battles on every supplied location.
@@ -199,13 +303,45 @@ public class Simulator {
             if (result == null) {
                 continue;
             }
-            // Remove every defeated army from the location and the graph.
             for (Army loser : result.getLosers()) {
                 location.removeArmy(loser);
             }
             report(result.getDescription());
+            playBattleSound(result);
         }
         graph.fireArmyChanged();
+    }
+
+    /**
+     * Picks a victory or defeat cue depending on whether the player's army
+     * (if any) is on the winning side.
+     *
+     * @param result the resolved battle
+     */
+    private void playBattleSound(BattleResult result) {
+        SoundManager.getInstance().play(SoundManager.Effect.BATTLE_HORN);
+        boolean playerWon = anyPlayerArmyIn(result.getWinners());
+        boolean playerLost = anyPlayerArmyIn(result.getLosers());
+        if (playerWon) {
+            SoundManager.getInstance().play(SoundManager.Effect.VICTORY);
+        } else if (playerLost) {
+            SoundManager.getInstance().play(SoundManager.Effect.DEFEAT);
+        }
+    }
+
+    /**
+     * Reports whether any army in the list is player controlled.
+     *
+     * @param armies the armies to scan
+     * @return {@code true} when at least one is player controlled
+     */
+    private boolean anyPlayerArmyIn(List<Army> armies) {
+        for (Army army : armies) {
+            if (army.isPlayerControlled()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -226,42 +362,49 @@ public class Simulator {
     }
 
     /**
-     * Triggers one random event per army on each active location, subject
-     * to the {@link #NO_EVENT_PROBABILITY} skip chance.
+     * Triggers one random event per army on each active location.
      *
      * @param locations map of locations to the armies that just arrived
-     * @param eligible only these armies may roll for an event (those that
-     *                 just arrived this phase)
+     * @param eligible only these armies may roll for an event
      */
     private void triggerEvents(Map<MapElement, List<Army>> locations, Iterable<Army> eligible) {
         if (locations.isEmpty()) {
             return;
         }
-        // Use identity hashing because two armies may share faction/units yet
-        // still be distinct combatants.
         Map<Army, Boolean> eligibleSet = new IdentityHashMap<>();
         for (Army a : eligible) {
             eligibleSet.put(a, Boolean.TRUE);
         }
         for (Map.Entry<MapElement, List<Army>> entry : locations.entrySet()) {
-            MapElement location = entry.getKey();
-            List<GameEvent> available = location.getEvents();
+            List<GameEvent> available = entry.getKey().getEvents();
             if (available.isEmpty()) {
                 continue;
             }
-            for (Army army : entry.getValue()) {
-                if (!eligibleSet.containsKey(army)) {
-                    continue;
-                }
-                if (random.nextDouble() < NO_EVENT_PROBABILITY) {
-                    continue;
-                }
-                GameEvent event = available.get(random.nextInt(available.size()));
-                String description = event.applyTo(army);
-                report(description);
-            }
+            rollEventsForLocation(entry.getValue(), available, eligibleSet);
         }
         graph.fireArmyChanged();
+    }
+
+    /**
+     * Performs the event roll for each eligible army on one location.
+     *
+     * @param hereArmies the armies on the location
+     * @param available the events available at the location
+     * @param eligibleSet the set of armies that just arrived
+     */
+    private void rollEventsForLocation(List<Army> hereArmies, List<GameEvent> available,
+                                       Map<Army, Boolean> eligibleSet) {
+        for (Army army : hereArmies) {
+            if (!eligibleSet.containsKey(army)) {
+                continue;
+            }
+            if (random.nextDouble() < NO_EVENT_PROBABILITY) {
+                continue;
+            }
+            GameEvent event = available.get(random.nextInt(available.size()));
+            String description = event.applyTo(army);
+            report(description);
+        }
     }
 
     /**
@@ -269,16 +412,14 @@ public class Simulator {
      */
     private void purgeDefeatedArmies() {
         for (Node n : graph.getNodes()) {
-            List<Army> snapshot = new ArrayList<>(n.getArmies());
-            for (Army a : snapshot) {
+            for (Army a : new ArrayList<>(n.getArmies())) {
                 if (a.isDefeated()) {
                     n.removeArmy(a);
                 }
             }
         }
         for (Edge e : graph.getEdges()) {
-            List<Army> snapshot = new ArrayList<>(e.getArmies());
-            for (Army a : snapshot) {
+            for (Army a : new ArrayList<>(e.getArmies())) {
                 if (a.isDefeated()) {
                     e.removeArmy(a);
                 }

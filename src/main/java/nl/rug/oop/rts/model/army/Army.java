@@ -1,5 +1,7 @@
 package nl.rug.oop.rts.model.army;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,21 +13,32 @@ import java.util.Objects;
  * <p>
  * An army is the smallest entity that can move around the graph during a
  * simulation step. The class is intentionally light: it offers query and
- * mutation helpers on the unit list, but contains no rendering or
- * simulation logic of its own. That keeps the cohesion high and the
- * coupling low, since the renderer and the simulator are free to evolve
- * without touching this class.
+ * mutation helpers on the unit list plus a handful of book-keeping fields
+ * (morale, last action, player-control flag, fortify shield) that the
+ * simulator consults when wiring up the per-step random-action and
+ * player-control features. Rendering and combat logic still live elsewhere
+ * so cohesion stays high.
  */
+@Getter
 public class Army {
+
+    /** Sentinel value indicating "no last action recorded". */
+    private static final String NO_ACTION = "";
 
     /** Display name for this army, surfaced in the side panel. */
     private String name;
-
     /** The faction the army belongs to. */
     private final Faction faction;
-
     /** Units making up the army. Defensively wrapped on read. */
     private final List<Unit> units;
+    /** Whether the user has taken direct control of this army. */
+    private boolean playerControlled;
+    /** Morale modifier in [0, 1.5]; combat power scales with it. */
+    private double morale = 1.0;
+    /** Name of the action executed during the most recent simulation step. */
+    private String lastAction = NO_ACTION;
+    /** Active fortify shield in [0, 1]: damage fraction absorbed next battle. */
+    private double fortifyShield;
 
     /**
      * Constructs an army with an explicit name.
@@ -46,30 +59,12 @@ public class Army {
     }
 
     /**
-     * Returns the army's display name.
-     *
-     * @return the name
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
      * Renames the army.
      *
      * @param name the new name; falls back to the faction name when blank
      */
     public void setName(String name) {
         this.name = (name == null || name.isBlank()) ? faction.getDisplayName() : name;
-    }
-
-    /**
-     * Returns the army's faction.
-     *
-     * @return the faction
-     */
-    public Faction getFaction() {
-        return faction;
     }
 
     /**
@@ -173,12 +168,49 @@ public class Army {
 
     /**
      * A rough single-number combat power, used as a tie breaker in the
-     * battle resolver.
+     * battle resolver. Scaled by the current morale modifier.
      *
      * @return weighted combat power
      */
     public double combatPower() {
-        return totalStrength() * 1.0 + totalHealth() * 0.1;
+        return (totalStrength() * 1.0 + totalHealth() * 0.1) * morale;
+    }
+
+    /**
+     * Flags the army as being commanded by the user. The simulator pauses
+     * for player input on each step for any army with this flag set.
+     *
+     * @param playerControlled whether to enable player control
+     */
+    public void setPlayerControlled(boolean playerControlled) {
+        this.playerControlled = playerControlled;
+    }
+
+    /**
+     * Sets the morale modifier, clamped to a safe range.
+     *
+     * @param morale the desired morale value
+     */
+    public void setMorale(double morale) {
+        this.morale = Math.max(0.0, Math.min(1.5, morale));
+    }
+
+    /**
+     * Records the human readable name of the action executed this turn.
+     *
+     * @param lastAction the action name; {@code null} clears the field
+     */
+    public void setLastAction(String lastAction) {
+        this.lastAction = lastAction == null ? NO_ACTION : lastAction;
+    }
+
+    /**
+     * Sets the fortify shield percentage; clamped to [0, 1].
+     *
+     * @param fortifyShield the new shield value
+     */
+    public void setFortifyShield(double fortifyShield) {
+        this.fortifyShield = Math.max(0.0, Math.min(1.0, fortifyShield));
     }
 
     @Override

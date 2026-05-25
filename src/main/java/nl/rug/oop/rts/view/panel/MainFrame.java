@@ -1,11 +1,17 @@
 package nl.rug.oop.rts.view.panel;
 
 import nl.rug.oop.rts.controller.EditorContext;
+import nl.rug.oop.rts.controller.PlayerController;
+import nl.rug.oop.rts.controller.PlayerOrder;
 import nl.rug.oop.rts.controller.action.EditorActions;
 import nl.rug.oop.rts.controller.action.JsonIoActions;
+import nl.rug.oop.rts.model.army.Army;
 import nl.rug.oop.rts.model.command.CommandHistory;
 import nl.rug.oop.rts.model.graph.Graph;
+import nl.rug.oop.rts.model.graph.Node;
 import nl.rug.oop.rts.model.simulation.Simulator;
+import nl.rug.oop.rts.util.SoundManager;
+import nl.rug.oop.rts.view.dialog.PlayerOrderDialog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -62,6 +68,8 @@ public class MainFrame extends JFrame {
         getContentPane().add(buildToolBar(), BorderLayout.NORTH);
 
         wireSimulatorReporter();
+        installPlayerController();
+        SoundManager.getInstance().play(SoundManager.Effect.AMBIENT);
 
         pack();
         // Centre on the primary display.
@@ -90,7 +98,24 @@ public class MainFrame extends JFrame {
         bar.addSeparator();
         bar.add(new JButton(new JsonIoActions.SaveAction(context, this::self)));
         bar.add(new JButton(new JsonIoActions.LoadAction(context, this::self, this::replaceGraph)));
+        bar.addSeparator();
+        bar.add(buildSoundToggle());
         return bar;
+    }
+
+    /**
+     * Builds the sound-on/off toggle for the toolbar.
+     *
+     * @return the configured toggle button
+     */
+    private JToggleButton buildSoundToggle() {
+        JToggleButton toggle = new JToggleButton("Sound On", SoundManager.getInstance().isEnabled());
+        toggle.addActionListener(e -> {
+            boolean on = toggle.isSelected();
+            SoundManager.getInstance().setEnabled(on);
+            toggle.setText(on ? "Sound On" : "Sound Off");
+        });
+        return toggle;
     }
 
     /**
@@ -126,6 +151,22 @@ public class MainFrame extends JFrame {
         wireSimulatorReporter();
         revalidate();
         repaint();
+    }
+
+    /**
+     * Installs the player controller; it pops {@link PlayerOrderDialog}
+     * whenever the simulator needs orders for a player army.
+     */
+    private void installPlayerController() {
+        PlayerController controller = new PlayerController() {
+            @Override
+            public PlayerOrder requestOrder(Army army, Node currentNode) {
+                PlayerOrderDialog dialog = new PlayerOrderDialog(MainFrame.this, army, currentNode);
+                dialog.setVisible(true);
+                return dialog.getResult();
+            }
+        };
+        context.installPlayerController(controller);
     }
 
     /**

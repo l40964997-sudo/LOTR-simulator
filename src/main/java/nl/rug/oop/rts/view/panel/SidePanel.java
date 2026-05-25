@@ -10,6 +10,7 @@ import nl.rug.oop.rts.model.event.GameEvent;
 import nl.rug.oop.rts.model.graph.Edge;
 import nl.rug.oop.rts.model.graph.MapElement;
 import nl.rug.oop.rts.model.graph.Node;
+import nl.rug.oop.rts.view.dialog.ArmyBuilderDialog;
 import nl.rug.oop.rts.view.dialog.UnitInfoDialog;
 
 import javax.swing.*;
@@ -42,6 +43,15 @@ public class SidePanel extends JPanel {
 
     /** Label for the details button. */
     private static final String DETAILS_LABEL = "Details";
+
+    /** Label for the custom-build button. */
+    private static final String BUILD_LABEL = "Build...";
+
+    /** Label for the player-control toggle. */
+    private static final String CONTROL_LABEL = "Take Control";
+
+    /** Label shown on the control toggle when an army is player controlled. */
+    private static final String RELEASE_LABEL = "Release";
 
     /** The editor context backing this panel. */
     private final EditorContext context;
@@ -225,12 +235,17 @@ public class SidePanel extends JPanel {
         JList<String> list = makeList(armyModel(element), 5, 110);
         panel.add(new JScrollPane(list));
         JButton add = new JButton(ADD_LABEL);
+        JButton build = new JButton(BUILD_LABEL);
         JButton remove = new JButton(REMOVE_LABEL);
         JButton details = new JButton(DETAILS_LABEL);
+        JButton control = new JButton(CONTROL_LABEL);
         add.addActionListener(action -> promptAddArmy(element));
+        build.addActionListener(action -> promptBuildArmy(element));
         remove.addActionListener(action -> removeSelectedArmy(element, list.getSelectedIndex()));
         details.addActionListener(action -> showArmyDetails(element, list.getSelectedIndex()));
-        panel.add(makeButtonRow(add, remove, details));
+        control.addActionListener(action -> toggleControl(element, list.getSelectedIndex()));
+        panel.add(makeButtonRow(add, build, remove));
+        panel.add(makeButtonRow(details, control));
         return panel;
     }
 
@@ -257,7 +272,9 @@ public class SidePanel extends JPanel {
     private DefaultListModel<String> armyModel(MapElement element) {
         DefaultListModel<String> model = new DefaultListModel<>();
         for (Army army : element.getArmies()) {
-            model.addElement(army.getName() + " (" + army.size() + ")");
+            String tag = army.isPlayerControlled() ? " [you]" : "";
+            String action = army.getLastAction().isEmpty() ? "" : " - " + army.getLastAction();
+            model.addElement(army.getName() + " (" + army.size() + ")" + tag + action);
         }
         return model;
     }
@@ -351,6 +368,35 @@ public class SidePanel extends JPanel {
         }
         Army army = new ArmyFactory().createRandomArmy(pick);
         context.getCommandHistory().execute(new AddArmyCommand(context.getGraph(), element, army));
+    }
+
+    /**
+     * Pops the army builder dialog so the user can hand-craft an army.
+     *
+     * @param element the target element
+     */
+    private void promptBuildArmy(MapElement element) {
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        Army army = ArmyBuilderDialog.showDialog(frame);
+        if (army == null) {
+            return;
+        }
+        context.getCommandHistory().execute(new AddArmyCommand(context.getGraph(), element, army));
+    }
+
+    /**
+     * Toggles the player-controlled flag of the selected army.
+     *
+     * @param element the target element
+     * @param index the selected list index
+     */
+    private void toggleControl(MapElement element, int index) {
+        if (index < 0 || index >= element.getArmies().size()) {
+            return;
+        }
+        Army army = element.getArmies().get(index);
+        army.setPlayerControlled(!army.isPlayerControlled());
+        context.getGraph().fireArmyChanged();
     }
 
     /**
