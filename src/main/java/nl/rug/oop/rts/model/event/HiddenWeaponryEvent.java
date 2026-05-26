@@ -26,7 +26,8 @@ public class HiddenWeaponryEvent extends GameEvent {
      */
     public HiddenWeaponryEvent(int strengthBonus) {
         super("Hidden Weaponry",
-                "A weapons cache is found, giving every unit increased damage.");
+                "Permanently grants +" + Math.max(0, strengthBonus)
+                + " strength to every unit in the army.");
         this.strengthBonus = Math.max(0, strengthBonus);
     }
 
@@ -38,7 +39,7 @@ public class HiddenWeaponryEvent extends GameEvent {
         for (Unit u : army.getUnits()) {
             u.setStrength(u.getStrength() + strengthBonus);
         }
-        return "Hidden Weaponry: " + army.getName()
-                + " gained +" + strengthBonus + " strength per unit.";
+        return "Hidden Weaponry: " + army.getName() + " - every unit's strength rose by "
+                + strengthBonus + " (army total now " + army.totalStrength() + ").";
     }
 }

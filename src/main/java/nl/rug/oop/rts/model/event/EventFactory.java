@@ -1,5 +1,6 @@
 package nl.rug.oop.rts.model.event;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
@@ -35,6 +36,20 @@ public final class EventFactory {
     }
 
     /**
+     * Returns one fresh instance of every registered event so the picker
+     * dialog can render each option together with its description.
+     *
+     * @return a fresh list of event instances
+     */
+    public static List<GameEvent> availableEvents() {
+        List<GameEvent> events = new ArrayList<>();
+        for (Registry entry : Registry.values()) {
+            events.add(entry.supplier.get());
+        }
+        return events;
+    }
+
+    /**
      * Creates a new event from its display name.
      *
      * @param name the event's display name; may be {@code null}
@@ -67,7 +82,22 @@ public final class EventFactory {
         HIDDEN_WEAPONRY("Hidden Weaponry", HiddenWeaponryEvent::new),
 
         /** Plague event entry. */
-        PLAGUE("Plague", PlagueEvent::new);
+        PLAGUE("Plague", PlagueEvent::new),
+
+        /** Surprise ambush event entry. */
+        AMBUSH("Ambush", AmbushEvent::new),
+
+        /** Supply cache event entry. */
+        SUPPLY_CACHE("Supply Cache", SupplyCacheEvent::new),
+
+        /** Morale boost event entry. */
+        MORALE_BOOST("Morale Boost", MoraleBoostEvent::new),
+
+        /** Ill omen event entry. */
+        ILL_OMEN("Ill Omen", IllOmenEvent::new),
+
+        /** Training drill event entry. */
+        TRAINING_DRILL("Training Drill", TrainingDrillEvent::new);
 
         /** Display name surfaced to the user. */
         private final String displayName;

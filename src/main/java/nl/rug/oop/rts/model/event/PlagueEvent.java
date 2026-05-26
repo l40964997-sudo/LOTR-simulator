@@ -29,7 +29,8 @@ public class PlagueEvent extends GameEvent {
      */
     public PlagueEvent(int drainPercent) {
         super("Plague",
-                "Disease sweeps through the army, weakening every unit.");
+                "Every unit immediately loses " + Math.max(0, Math.min(100, drainPercent))
+                + "% of its current health.");
         this.drainPercent = Math.max(0, Math.min(100, drainPercent));
     }
 
@@ -38,11 +39,14 @@ public class PlagueEvent extends GameEvent {
         if (army == null || army.size() == 0) {
             return "Plague: no army to afflict.";
         }
+        int sizeBefore = army.size();
         for (Unit u : army.getUnits()) {
             int loss = (u.getHealth() * drainPercent) / 100;
             u.takeDamage(loss);
         }
         army.removeDead();
-        return "Plague: " + army.getName() + " lost " + drainPercent + "% health per unit.";
+        int killed = sizeBefore - army.size();
+        return "Plague: " + army.getName() + " - every unit lost " + drainPercent
+                + "% HP" + (killed > 0 ? " (" + killed + " unit(s) died)." : ".");
     }
 }

@@ -36,7 +36,8 @@ public class NaturalDisasterEvent extends GameEvent {
      */
     public NaturalDisasterEvent(int maxCasualties) {
         super("Natural Disaster",
-                "A catastrophe strikes and removes some units from the army.");
+                "Wipes out 1 to " + Math.max(1, maxCasualties)
+                + " random units (avalanche, flood, etc.).");
         this.maxCasualties = Math.max(0, maxCasualties);
         this.random = new Random();
     }
@@ -59,6 +60,6 @@ public class NaturalDisasterEvent extends GameEvent {
             army.removeUnit(victim);
         }
         return "Natural Disaster: " + army.getName()
-                + " lost " + victims.size() + " units.";
+                + " lost " + victims.size() + " of " + (army.size() + victims.size()) + " units.";
     }
 }

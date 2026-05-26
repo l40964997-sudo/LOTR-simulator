@@ -35,7 +35,7 @@ public class ReinforcementsEvent extends GameEvent {
      */
     public ReinforcementsEvent(int amount) {
         super("Reinforcements",
-                "Friendly forces arrive, adding fresh units to the army.");
+                "Adds " + Math.max(0, amount) + " fresh units of the army's own faction.");
         this.amount = Math.max(0, amount);
         this.unitFactory = new UnitFactory();
     }
@@ -45,9 +45,11 @@ public class ReinforcementsEvent extends GameEvent {
         if (army == null) {
             return "Reinforcements: no army present.";
         }
+        int before = army.size();
         for (int i = 0; i < amount; i++) {
             army.addUnit(unitFactory.createRandomUnit(army.getFaction()));
         }
-        return "Reinforcements: " + army.getName() + " gained " + amount + " units.";
+        return "Reinforcements: " + army.getName() + " grew from " + before + " to "
+                + army.size() + " units (+" + amount + ").";
     }
 }

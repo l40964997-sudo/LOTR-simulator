@@ -250,7 +250,9 @@ public class SidePanel extends JPanel {
     }
 
     /**
-     * Builds the list model of event names for an element.
+     * Builds the list model of event names for an element. The label
+     * combines the name and a short hint of the effect so the user can
+     * tell events apart at a glance.
      *
      * @param element the element
      * @return a populated list model
@@ -258,7 +260,11 @@ public class SidePanel extends JPanel {
     private DefaultListModel<String> eventModel(MapElement element) {
         DefaultListModel<String> model = new DefaultListModel<>();
         for (GameEvent event : element.getEvents()) {
-            model.addElement(event.getName());
+            String desc = event.getDescription();
+            if (desc.length() > 40) {
+                desc = desc.substring(0, 38) + "...";
+            }
+            model.addElement(event.getName() + " - " + desc);
         }
         return model;
     }
@@ -325,20 +331,26 @@ public class SidePanel extends JPanel {
 
     /**
      * Prompts the user to choose an event and adds it to the element.
+     * Renders each option as {@code "Name - description"} so the user
+     * sees exactly what each event does before picking.
      *
      * @param element the target element
      */
     private void promptAddEvent(MapElement element) {
-        String[] names = EventFactory.availableEventNames().toArray(new String[0]);
-        String pick = (String) JOptionPane.showInputDialog(this, "Select event:", "Add Event",
-                JOptionPane.QUESTION_MESSAGE, null, names, names[0]);
+        java.util.List<GameEvent> options = EventFactory.availableEvents();
+        String[] labels = new String[options.size()];
+        for (int i = 0; i < options.size(); i++) {
+            GameEvent e = options.get(i);
+            labels[i] = e.getName() + " - " + e.getDescription();
+        }
+        String pick = (String) JOptionPane.showInputDialog(this,
+                "Select an event to attach:", "Add Event",
+                JOptionPane.QUESTION_MESSAGE, null, labels, labels[0]);
         if (pick == null) {
             return;
         }
-        GameEvent event = EventFactory.fromName(pick);
-        if (event != null) {
-            context.getCommandHistory().execute(new AddEventCommand(context.getGraph(), element, event));
-        }
+        GameEvent chosen = options.get(java.util.Arrays.asList(labels).indexOf(pick));
+        context.getCommandHistory().execute(new AddEventCommand(context.getGraph(), element, chosen));
     }
 
     /**

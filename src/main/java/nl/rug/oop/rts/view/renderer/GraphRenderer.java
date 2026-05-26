@@ -59,6 +59,15 @@ public class GraphRenderer {
     /** Size in pixels of the tiled background cells. */
     private static final int MAP_TILE = 256;
 
+    /** Size of a single army chip in pixels. */
+    private static final int CHIP_SIZE = 22;
+
+    /** Spacing between army chips. */
+    private static final int CHIP_SPACING = 3;
+
+    /** Maximum chips per row in the multi-army layout. */
+    private static final int CHIPS_PER_ROW = 4;
+
     /** Label font. */
     private static final Font LABEL_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 12);
 
@@ -209,7 +218,7 @@ public class GraphRenderer {
         }
         drawNodeBase(g2, node, x, y, diameter);
         drawNodeLabel(g2, node.getName(), x, y);
-        drawArmyBadges(g2, node.getArmies(), x, y - NODE_RADIUS - 16, true);
+        drawArmyBadges(g2, node.getArmies(), x, y - NODE_RADIUS - 6, true);
         if (hasClash(node.getArmies())) {
             drawClash(g2, x, y);
         }
@@ -271,7 +280,9 @@ public class GraphRenderer {
     }
 
     /**
-     * Draws faction emblem chips for each army present at a location.
+     * Draws faction emblem chips for every army present at a location.
+     * Chips wrap into multiple rows when more than {@value #CHIPS_PER_ROW}
+     * armies share the spot, so all of them remain visible.
      *
      * @param g2 the graphics surface
      * @param armies the armies to depict
@@ -283,18 +294,24 @@ public class GraphRenderer {
         if (armies == null || armies.isEmpty()) {
             return;
         }
-        int chip = 18;
-        int spacing = 3;
-        int totalWidth = armies.size() * (chip + spacing) - spacing;
-        int startX = cx - totalWidth / 2;
-        int y = above ? cy - chip : cy - chip / 2;
-        for (int i = 0; i < armies.size(); i++) {
-            drawArmyChip(g2, armies.get(i), startX + i * (chip + spacing), y, chip);
+        int n = armies.size();
+        int rows = (n + CHIPS_PER_ROW - 1) / CHIPS_PER_ROW;
+        int rowStep = CHIP_SIZE + CHIP_SPACING;
+        int bottomChipTop = above ? cy - CHIP_SIZE : cy - CHIP_SIZE / 2;
+        for (int i = 0; i < n; i++) {
+            int row = i / CHIPS_PER_ROW;
+            int col = i % CHIPS_PER_ROW;
+            int countInRow = Math.min(CHIPS_PER_ROW, n - row * CHIPS_PER_ROW);
+            int rowWidth = countInRow * (CHIP_SIZE + CHIP_SPACING) - CHIP_SPACING;
+            int x = cx - rowWidth / 2 + col * (CHIP_SIZE + CHIP_SPACING);
+            int y = bottomChipTop - (rows - 1 - row) * rowStep;
+            drawArmyChip(g2, armies.get(i), x, y, CHIP_SIZE);
         }
     }
 
     /**
-     * Draws a single army chip: faction emblem plus unit count.
+     * Draws a single army chip: faction-tinted background ring, emblem,
+     * gold outline for player-controlled armies, and unit count.
      *
      * @param g2 the graphics surface
      * @param army the army to depict
@@ -303,17 +320,38 @@ public class GraphRenderer {
      * @param chip the chip size in pixels
      */
     private void drawArmyChip(Graphics2D g2, Army army, int x, int y, int chip) {
+        Color base = army.getFaction().getColor();
+        g2.setColor(new Color(base.getRed(), base.getGreen(), base.getBlue(), 220));
+        g2.fillOval(x - 2, y - 2, chip + 4, chip + 4);
         Image emblem = sprite("faction" + army.getFaction().textureKey(), chip);
         g2.drawImage(emblem, x, y, null);
-        String count = String.valueOf(army.size());
-        g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 11f));
-        int textWidth = g2.getFontMetrics().stringWidth(count);
+        if (army.isPlayerControlled()) {
+            g2.setColor(NODE_HIGHLIGHT);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawOval(x - 2, y - 2, chip + 4, chip + 4);
+        }
+        drawChipCount(g2, army.size(), x, y, chip);
+    }
+
+    /**
+     * Draws the unit-count overlay on a chip.
+     *
+     * @param g2 the graphics surface
+     * @param count the unit count to print
+     * @param x the chip x position
+     * @param y the chip y position
+     * @param chip the chip size in pixels
+     */
+    private void drawChipCount(Graphics2D g2, int count, int x, int y, int chip) {
+        String text = String.valueOf(count);
+        g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 12f));
+        int textWidth = g2.getFontMetrics().stringWidth(text);
         int textX = x + (chip - textWidth) / 2;
         int textY = y + chip - 4;
         g2.setColor(Color.BLACK);
-        g2.drawString(count, textX + 1, textY + 1);
+        g2.drawString(text, textX + 1, textY + 1);
         g2.setColor(Color.WHITE);
-        g2.drawString(count, textX, textY);
+        g2.drawString(text, textX, textY);
     }
 
     /**
