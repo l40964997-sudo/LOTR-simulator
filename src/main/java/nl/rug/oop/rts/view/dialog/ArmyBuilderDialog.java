@@ -1,5 +1,6 @@
 package nl.rug.oop.rts.view.dialog;
 
+import lombok.Getter;
 import nl.rug.oop.rts.model.army.Army;
 import nl.rug.oop.rts.model.army.Faction;
 import nl.rug.oop.rts.model.army.Unit;
@@ -46,6 +47,7 @@ import java.util.Map;
  * army to the caller, which is responsible for inserting it via the usual
  * undo-aware command.
  */
+@Getter
 public class ArmyBuilderDialog extends JDialog {
 
     /** Serialisation id. */
@@ -91,16 +93,6 @@ public class ArmyBuilderDialog extends JDialog {
         setPreferredSize(new Dimension(440, 480));
         pack();
         setLocationRelativeTo(owner);
-    }
-
-    /**
-     * Returns the army built by the dialog, or {@code null} when the user
-     * cancelled or did not recruit any units.
-     *
-     * @return the new army, possibly {@code null}
-     */
-    public Army getResult() {
-        return result;
     }
 
     /**

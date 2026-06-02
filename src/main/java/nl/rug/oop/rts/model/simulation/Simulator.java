@@ -3,6 +3,7 @@ package nl.rug.oop.rts.model.simulation;
 import nl.rug.oop.rts.controller.PlayerController;
 import nl.rug.oop.rts.controller.PlayerOrder;
 import nl.rug.oop.rts.model.army.ActionExecutor;
+import nl.rug.oop.rts.model.army.ActionStrategy;
 import nl.rug.oop.rts.model.army.Army;
 import nl.rug.oop.rts.model.army.ArmyAction;
 import nl.rug.oop.rts.model.battle.BattleResult;
@@ -13,7 +14,6 @@ import nl.rug.oop.rts.model.graph.Edge;
 import nl.rug.oop.rts.model.graph.Graph;
 import nl.rug.oop.rts.model.graph.MapElement;
 import nl.rug.oop.rts.model.graph.Node;
-import nl.rug.oop.rts.util.SoundManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,7 +55,7 @@ public class Simulator {
     /** Strategy used to pick an outgoing edge. */
     private final PathingStrategy pathingStrategy;
     /** Action roller used for AI-controlled armies. */
-    private final ActionExecutor actionExecutor;
+    private final ActionStrategy actionStrategy;
     /** Random source for event triggering. */
     private final Random random;
     /** Reporter for narrative events and battles. The view subscribes to it. */
@@ -71,27 +71,32 @@ public class Simulator {
      * @param graph the graph to simulate; must not be {@code null}
      */
     public Simulator(Graph graph) {
-        this(graph, new ComplexBattleStrategy(), new SmartPathing(), new Random());
+        this(graph, new ComplexBattleStrategy(), new SmartPathing(),
+                new ActionExecutor(), new Random());
     }
 
     /**
-     * Fully parametrised constructor.
+     * Fully parametrised constructor used by tests and callers that want to
+     * swap any of the strategy axes.
      *
      * @param graph           the graph to simulate
      * @param battleStrategy  the battle resolver
      * @param pathingStrategy the pathing algorithm
+     * @param actionStrategy  the action picker / executor
      * @param random          the random source used for event chance
      */
     public Simulator(Graph graph, BattleStrategy battleStrategy,
-                     PathingStrategy pathingStrategy, Random random) {
-        if (graph == null || battleStrategy == null || pathingStrategy == null || random == null) {
+                     PathingStrategy pathingStrategy, ActionStrategy actionStrategy,
+                     Random random) {
+        if (graph == null || battleStrategy == null || pathingStrategy == null
+                || actionStrategy == null || random == null) {
             throw new IllegalArgumentException("Constructor arguments must be non-null");
         }
         this.graph = graph;
         this.battleStrategy = battleStrategy;
         this.pathingStrategy = pathingStrategy;
+        this.actionStrategy = actionStrategy;
         this.random = random;
-        this.actionExecutor = new ActionExecutor(random);
     }
 
     /**
@@ -129,7 +134,6 @@ public class Simulator {
         triggerArrivedEvents(graph.getNodes(), destinations.keySet());
         purgeDefeatedArmies();
         graph.fireSimulationStepped();
-        SoundManager.getInstance().play(SoundManager.Effect.MARCH);
     }
 
     /**
@@ -170,7 +174,7 @@ public class Simulator {
                     continue;
                 }
             }
-            orders.put(army, actionExecutor.pickRandomAction());
+            orders.put(army, actionStrategy.pickRandomAction());
         }
         return orders;
     }
@@ -185,9 +189,8 @@ public class Simulator {
         for (Map.Entry<Army, ArmyAction> entry : orders.entrySet()) {
             Army army = entry.getKey();
             ArmyAction action = entry.getValue();
-            String line = actionExecutor.execute(army, action, originNodes.get(army));
+            String line = actionStrategy.execute(army, action, originNodes.get(army));
             report(line);
-            SoundManager.getInstance().play(SoundManager.Effect.ACTION_CLICK);
         }
         graph.fireArmyChanged();
     }
@@ -205,7 +208,7 @@ public class Simulator {
         for (Map.Entry<Army, Node> entry : originNodes.entrySet()) {
             Army army = entry.getKey();
             ArmyAction action = orders.get(army);
-            if (!actionExecutor.permitsMovement(action)) {
+            if (!actionStrategy.permitsMovement(action)) {
                 continue;
             }
             Edge picked = pickEdgeFor(army, entry.getValue());
@@ -268,7 +271,7 @@ public class Simulator {
     private void handleForcedMarch(Map<Army, ArmyAction> orders, Map<Army, Node> destinations) {
         Map<Army, Node> origins = new IdentityHashMap<>();
         for (Map.Entry<Army, Node> entry : destinations.entrySet()) {
-            if (actionExecutor.doublesMovement(orders.get(entry.getKey()))) {
+            if (actionStrategy.doublesMovement(orders.get(entry.getKey()))) {
                 origins.put(entry.getKey(), entry.getValue());
             }
         }
@@ -307,41 +310,8 @@ public class Simulator {
                 location.removeArmy(loser);
             }
             report(result.getDescription());
-            playBattleSound(result);
         }
         graph.fireArmyChanged();
-    }
-
-    /**
-     * Picks a victory or defeat cue depending on whether the player's army
-     * (if any) is on the winning side.
-     *
-     * @param result the resolved battle
-     */
-    private void playBattleSound(BattleResult result) {
-        SoundManager.getInstance().play(SoundManager.Effect.BATTLE_HORN);
-        boolean playerWon = anyPlayerArmyIn(result.getWinners());
-        boolean playerLost = anyPlayerArmyIn(result.getLosers());
-        if (playerWon) {
-            SoundManager.getInstance().play(SoundManager.Effect.VICTORY);
-        } else if (playerLost) {
-            SoundManager.getInstance().play(SoundManager.Effect.DEFEAT);
-        }
-    }
-
-    /**
-     * Reports whether any army in the list is player controlled.
-     *
-     * @param armies the armies to scan
-     * @return {@code true} when at least one is player controlled
-     */
-    private boolean anyPlayerArmyIn(List<Army> armies) {
-        for (Army army : armies) {
-            if (army.isPlayerControlled()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

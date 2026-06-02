@@ -15,7 +15,7 @@ import java.util.Random;
  * to move this turn, so the simulator can wire it into the move phase
  * without duplicating game rules.
  */
-public final class ActionExecutor {
+public final class ActionExecutor implements ActionStrategy {
 
     /** Morale bonus applied by {@link ArmyAction#RALLY}. */
     private static final double RALLY_BONUS = 0.10;
@@ -62,6 +62,7 @@ public final class ActionExecutor {
      *
      * @return a randomly selected action; never {@code null}
      */
+    @Override
     public ArmyAction pickRandomAction() {
         ArmyAction[] all = ArmyAction.values();
         return all[random.nextInt(all.length)];
@@ -75,6 +76,7 @@ public final class ActionExecutor {
      * @param origin the army's current node, used by location-aware actions
      * @return a short human-readable narrative summarising the action
      */
+    @Override
     public String execute(Army army, ArmyAction action, Node origin) {
         if (army == null || action == null) {
             return "";
@@ -111,6 +113,7 @@ public final class ActionExecutor {
      * @param action the action to query; {@code null} counts as allowed
      * @return {@code false} when the action pins the army in place
      */
+    @Override
     public boolean permitsMovement(ArmyAction action) {
         return action != ArmyAction.HOLD && action != ArmyAction.FORTIFY;
     }
@@ -121,6 +124,7 @@ public final class ActionExecutor {
      * @param action the action to query; {@code null} returns false
      * @return {@code true} only for {@link ArmyAction#FORCED_MARCH}
      */
+    @Override
     public boolean doublesMovement(ArmyAction action) {
         return action == ArmyAction.FORCED_MARCH;
     }

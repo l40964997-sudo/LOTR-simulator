@@ -1,5 +1,7 @@
 package nl.rug.oop.rts.io;
 
+import java.io.Serializable;
+
 /**
  * Thrown when JSON input does not match the expected grammar.
  *
@@ -7,7 +9,7 @@ package nl.rug.oop.rts.io;
  * the user interface instead of a raw stack trace when a save file is
  * malformed.</p>
  */
-public class JsonParseException extends RuntimeException {
+public class JsonParseException extends RuntimeException implements Serializable {
 
     /** Serialisation id. */
     private static final long serialVersionUID = 1L;

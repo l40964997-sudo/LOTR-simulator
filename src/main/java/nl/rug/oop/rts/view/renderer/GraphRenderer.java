@@ -56,8 +56,14 @@ public class GraphRenderer {
     /** Edge colour when selected. */
     private static final Color EDGE_COLOR_SELECTED = new Color(0xF7B538);
 
-    /** Size in pixels of the tiled background cells. */
+    /** Size in pixels of the tiled fallback background cells. */
     private static final int MAP_TILE = 256;
+
+    /** Maximum dimension we ever request for the Middle Earth backdrop. */
+    private static final int MAP_BACKDROP_MAX = 2048;
+
+    /** Translucent overlay shade for legibility on top of the map. */
+    private static final Color BACKDROP_VEIL = new Color(0, 0, 0, 110);
 
     /** Size of a single army chip in pixels. */
     private static final int CHIP_SIZE = 22;
@@ -133,21 +139,51 @@ public class GraphRenderer {
     }
 
     /**
-     * Fills the panel by tiling the map texture across it.
+     * Paints the Middle Earth backdrop. The {@code lotrMap.jpg} resource is
+     * scaled to cover the whole panel; the parchment tile is drawn first as
+     * a backup so any margin caused by aspect-ratio differences still looks
+     * like a map rather than blank space. A translucent dark veil sits on
+     * top to keep the foreground elements readable.
      *
      * @param g2 the graphics surface
      * @param width the panel width
      * @param height the panel height
      */
     private void paintBackground(Graphics2D g2, int width, int height) {
+        paintTiledFallback(g2, width, height);
+        int side = Math.min(MAP_BACKDROP_MAX, Math.max(width, height));
+        Image backdrop = sprite("mapLotr", side);
+        int imgW = backdrop.getWidth(null);
+        int imgH = backdrop.getHeight(null);
+        if (imgW <= 0 || imgH <= 0) {
+            imgW = side;
+            imgH = side;
+        }
+        double scale = Math.max((double) width / imgW, (double) height / imgH);
+        int drawW = (int) Math.round(imgW * scale);
+        int drawH = (int) Math.round(imgH * scale);
+        int dx = (width - drawW) / 2;
+        int dy = (height - drawH) / 2;
+        g2.drawImage(backdrop, dx, dy, drawW, drawH, null);
+        g2.setColor(BACKDROP_VEIL);
+        g2.fillRect(0, 0, width, height);
+    }
+
+    /**
+     * Tiles the parchment texture across the panel as a fallback under the
+     * Middle Earth map, so any unfilled margin keeps the map feel.
+     *
+     * @param g2 the graphics surface
+     * @param width the panel width
+     * @param height the panel height
+     */
+    private void paintTiledFallback(Graphics2D g2, int width, int height) {
         Image tile = sprite("mapTexture", MAP_TILE);
         for (int x = 0; x < width; x += MAP_TILE) {
             for (int y = 0; y < height; y += MAP_TILE) {
                 g2.drawImage(tile, x, y, null);
             }
         }
-        g2.setColor(new Color(0, 0, 0, 90));
-        g2.fillRect(0, 0, width, height);
     }
 
     /**
@@ -236,9 +272,13 @@ public class GraphRenderer {
      */
     private void drawNodeBase(Graphics2D g2, Node node, int x, int y, int diameter) {
         Faction holder = controllingFaction(node.getArmies());
+        // When the node is held by a single faction, draw that faction's
+        // fortress sprite (all five fortress PNGs are wired through the
+        // TextureLoader). Otherwise round-robin through the four neutral
+        // node sprites (node1..node4) so the map shows visual variety.
         String key = holder != null
                 ? "fortress" + holder.textureKey()
-                : "node" + (node.getId() % 4 + 1);
+                : "node" + (Math.floorMod(node.getId(), 4) + 1);
         Image base = sprite(key, diameter);
         g2.drawImage(base, x - NODE_RADIUS, y - NODE_RADIUS, null);
     }

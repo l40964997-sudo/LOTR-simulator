@@ -7,11 +7,9 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.LineEvent;
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -21,24 +19,21 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
 
 /**
- * Procedural and file-based sound effect player plus background music.
+ * Looping background music player backed by a WAV playlist.
  * <p>
- * Ships with a tiny synthesiser that renders short sine-wave cues (battle
- * horn, victory chord, march beat) so the game has audible feedback with
- * no extra assets. Drop a WAV file named after an {@link Effect} (lower
- * case, e.g. {@code battle_horn.wav}) into {@code src/main/resources/sounds/}
- * to replace the procedural beep; {@link #startPlaylist()} cycles through
- * every {@code *.wav} in that folder as background music.
+ * Drop one or more {@code .wav} files into {@code src/main/resources/sounds/}
+ * and {@link #startPlaylist()} cycles through them back-to-back. Tracks can
+ * be skipped with {@link #nextTrack()} and shuffled with
+ * {@link #setShuffle(boolean)}. The previous procedural sound-effect engine
+ * has been retired; this class now focuses on music only.
  * <p>
- * Sound output is best effort: when no audio device is available the
- * manager silently drops the request so callers stay free of try/catch noise.
+ * Audio output is best effort: when no device is available the manager
+ * silently drops the request so callers stay free of try/catch noise.
  */
 @Getter
 @Setter
@@ -47,24 +42,8 @@ public final class SoundManager {
     /** Singleton instance. */
     private static final SoundManager INSTANCE = new SoundManager();
 
-    /** Output sample rate. CD quality is overkill for beeps but easy. */
-    private static final float SAMPLE_RATE = 44_100f;
-
-    /** PCM audio format used for the procedural synthesiser. */
-    private static final AudioFormat FORMAT =
-            new AudioFormat(SAMPLE_RATE, 16, 1, true, false);
-
     /** Classpath folder scanned for sound assets. */
     private static final String SOUND_DIR = "sounds";
-
-    /** Per-effect cached PCM byte buffer for the procedural fallback. */
-    private final Map<Effect, byte[]> proceduralCache = new EnumMap<>(Effect.class);
-
-    /** Per-effect cached {@link Clip} loaded from a WAV file, when present. */
-    private final Map<Effect, Clip> clipCache = new EnumMap<>(Effect.class);
-
-    /** Master switch the user can flip from the toolbar. */
-    private boolean enabled = true;
 
     /** Currently playing looped music clip, or {@code null}. */
     private Clip musicClip;
@@ -91,14 +70,7 @@ public final class SoundManager {
      * Private constructor; use {@link #getInstance()}.
      */
     private SoundManager() {
-        for (Effect effect : Effect.values()) {
-            proceduralCache.put(effect, synthesise(effect));
-            String path = SOUND_DIR + "/" + effect.name().toLowerCase(Locale.ROOT) + ".wav";
-            Clip clip = tryLoadClip(path, false);
-            if (clip != null) {
-                clipCache.put(effect, clip);
-            }
-        }
+        // Music playback only - no procedural effects to pre-render.
     }
 
     /**
@@ -111,51 +83,8 @@ public final class SoundManager {
     }
 
     /**
-     * Reports whether sound output is currently enabled.
-     *
-     * @return {@code true} when {@link #play(Effect)} will actually play
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    /**
-     * Toggles the master effects switch. Music is controlled separately
-     * through {@link #startPlaylist()} / {@link #stopMusic()}, so flipping
-     * sound effects off no longer kills the background music.
-     *
-     * @param enabled the new state
-     */
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    /**
-     * Plays the given effect on a fresh background thread.
-     *
-     * @param effect the effect to play; {@code null} is silently ignored
-     */
-    public void play(Effect effect) {
-        if (!enabled || effect == null) {
-            return;
-        }
-        Clip clip = clipCache.get(effect);
-        if (clip != null) {
-            playEffectClip(clip);
-            return;
-        }
-        byte[] pcm = proceduralCache.get(effect);
-        if (pcm == null) {
-            return;
-        }
-        Thread t = new Thread(() -> writeToLine(pcm), "sound-" + effect.name().toLowerCase(Locale.ROOT));
-        t.setDaemon(true);
-        t.start();
-    }
-
-    /**
      * Convenience for the old single-track API: forwards to
-     * {@link #playSingleLoop(String)} so call sites do not need updating.
+     * {@link #playSingleLoop(String)} so existing call sites still work.
      *
      * @param resourceName the file name in the {@code sounds/} folder
      */
@@ -168,8 +97,7 @@ public final class SoundManager {
      * <p>
      * Nulls {@link #musicClip} before calling {@code stop()} so the
      * line-listener used by {@link #startPlaylist()} can tell the
-     * difference between "this clip ended naturally" and "we asked it to
-     * stop because we're switching tracks".
+     * difference between "ended naturally" and "we asked it to stop".
      */
     public void stopMusic() {
         Clip toStop = musicClip;
@@ -214,24 +142,6 @@ public final class SoundManager {
     }
 
     /**
-     * Returns whether the playlist auto-advances in random order.
-     *
-     * @return {@code true} when shuffling
-     */
-    public boolean isShuffle() {
-        return shuffle;
-    }
-
-    /**
-     * Toggles shuffle mode for the playlist.
-     *
-     * @param shuffle the new shuffle setting
-     */
-    public void setShuffle(boolean shuffle) {
-        this.shuffle = shuffle;
-    }
-
-    /**
      * Returns the name of the track currently playing, if any.
      *
      * @return the active track name, or {@code null} when nothing is playing
@@ -245,8 +155,6 @@ public final class SoundManager {
 
     /**
      * Starts (or restarts) one named music track on a continuous loop.
-     * Useful when you want a single fixed background piece rather than
-     * cycling through a playlist.
      *
      * @param resourceName the file name in the {@code sounds/} folder
      */
@@ -263,6 +171,19 @@ public final class SoundManager {
         applyVolume(clip, musicVolume);
         clip.loop(Clip.LOOP_CONTINUOUSLY);
         musicClip = clip;
+    }
+
+    /**
+     * Sets the linear music volume in {@code [0, 1]} and applies it
+     * immediately to any active music clip.
+     *
+     * @param volume the desired volume; clamped to {@code [0, 1]}
+     */
+    public void setMusicVolume(float volume) {
+        this.musicVolume = Math.max(0f, Math.min(1f, volume));
+        if (musicClip != null) {
+            applyVolume(musicClip, musicVolume);
+        }
     }
 
     /**
@@ -304,7 +225,7 @@ public final class SoundManager {
     }
 
     /**
-     * Adds a listener that auto-advances to the
+     * Adds a {@link LineEvent#STOP} listener that auto-advances to the
      * next playlist track when this clip ends naturally.
      *
      * @param clip the clip to monitor
@@ -332,64 +253,6 @@ public final class SoundManager {
         }, "music-advance");
         t.setDaemon(true);
         t.start();
-    }
-
-    /**
-     * Lists every {@code *.wav} present in the {@code sounds/} resource
-     * folder in alphabetical order. Works when resources are on disk
-     * (the IDE / Maven run); returns an empty list inside a packaged JAR.
-     *
-     * @return the discovered file names, never {@code null}
-     */
-    private List<String> discoverAllWavs() {
-        try {
-            URL url = getClass().getClassLoader().getResource(SOUND_DIR);
-            if (url == null || !"file".equals(url.getProtocol())) {
-                return Collections.emptyList();
-            }
-            File folder = new File(url.toURI());
-            File[] wavs = folder.listFiles(
-                    (dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".wav"));
-            if (wavs == null || wavs.length == 0) {
-                return Collections.emptyList();
-            }
-            Arrays.sort(wavs);
-            List<String> names = new ArrayList<>(wavs.length);
-            for (File file : wavs) {
-                names.add(file.getName());
-            }
-            return names;
-        } catch (URISyntaxException ex) {
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Sets the linear music volume in {@code [0, 1]} and applies it
-     * immediately to any active music clip.
-     *
-     * @param volume the desired volume; clamped to {@code [0, 1]}
-     */
-    public void setMusicVolume(float volume) {
-        this.musicVolume = Math.max(0f, Math.min(1f, volume));
-        if (musicClip != null) {
-            applyVolume(musicClip, musicVolume);
-        }
-    }
-
-    /**
-     * Rewinds and triggers a cached effect clip. Re-triggering an already
-     * playing clip simply restarts it from the beginning - good enough
-     * for short UI cues.
-     *
-     * @param clip the cached effect clip
-     */
-    private void playEffectClip(Clip clip) {
-        synchronized (clip) {
-            clip.stop();
-            clip.setFramePosition(0);
-            clip.start();
-        }
     }
 
     /**
@@ -457,137 +320,32 @@ public final class SoundManager {
     }
 
     /**
-     * Streams a PCM buffer to the system audio line.
+     * Lists every {@code *.wav} present in the {@code sounds/} resource
+     * folder in alphabetical order. Works when resources are on disk
+     * (the IDE / Maven run); returns an empty list inside a packaged JAR.
      *
-     * @param pcm the PCM data to play
+     * @return the discovered file names, never {@code null}
      */
-    private void writeToLine(byte[] pcm) {
-        DataLine.Info info = new DataLine.Info(SourceDataLine.class, FORMAT);
-        try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info)) {
-            line.open(FORMAT);
-            line.start();
-            line.write(pcm, 0, pcm.length);
-            line.drain();
-        } catch (LineUnavailableException ignored) {
-            // Audio not available: silently drop the request.
-        }
-    }
-
-    /**
-     * Synthesises an effect into raw little-endian 16-bit PCM bytes.
-     *
-     * @param effect the effect to render
-     * @return the rendered PCM data
-     */
-    private byte[] synthesise(Effect effect) {
-        switch (effect) {
-            case BATTLE_HORN: return tone(0.70, 220.0, 0.45);
-            case VICTORY: return chord(0.90, new double[] {523, 659, 784}, 0.40);
-            case DEFEAT: return tone(0.80, 110.0, 0.20);
-            case MARCH: return drumPattern(0.50);
-            case ACTION_CLICK: return tone(0.10, 880.0, 0.35);
-            case STEP: return tone(0.05, 1320.0, 0.25);
-            case AMBIENT: return tone(1.20, 165.0, 0.10);
-            default: return new byte[0];
-        }
-    }
-
-    /**
-     * Renders a steady sine wave with an exponential envelope.
-     *
-     * @param seconds duration in seconds
-     * @param frequency tone frequency in Hz
-     * @param volume peak amplitude in [0, 1]
-     * @return the PCM bytes
-     */
-    private byte[] tone(double seconds, double frequency, double volume) {
-        int samples = (int) (SAMPLE_RATE * seconds);
-        byte[] out = new byte[samples * 2];
-        for (int i = 0; i < samples; i++) {
-            double t = i / SAMPLE_RATE;
-            double envelope = Math.exp(-2.0 * t / seconds);
-            double sample = Math.sin(2 * Math.PI * frequency * t) * volume * envelope;
-            writeSample(out, i, sample);
-        }
-        return out;
-    }
-
-    /**
-     * Mixes a small chord made of independent sine partials.
-     *
-     * @param seconds duration in seconds
-     * @param frequencies the partial frequencies in Hz
-     * @param volume peak amplitude in [0, 1]
-     * @return the PCM bytes
-     */
-    private byte[] chord(double seconds, double[] frequencies, double volume) {
-        int samples = (int) (SAMPLE_RATE * seconds);
-        byte[] out = new byte[samples * 2];
-        double partVolume = volume / Math.max(1, frequencies.length);
-        for (int i = 0; i < samples; i++) {
-            double t = i / SAMPLE_RATE;
-            double envelope = Math.exp(-1.5 * t / seconds);
-            double sample = 0.0;
-            for (double f : frequencies) {
-                sample += Math.sin(2 * Math.PI * f * t) * partVolume * envelope;
+    private List<String> discoverAllWavs() {
+        try {
+            URL url = getClass().getClassLoader().getResource(SOUND_DIR);
+            if (url == null || !"file".equals(url.getProtocol())) {
+                return Collections.emptyList();
             }
-            writeSample(out, i, sample);
+            File folder = new File(url.toURI());
+            File[] wavs = folder.listFiles(
+                    (dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".wav"));
+            if (wavs == null || wavs.length == 0) {
+                return Collections.emptyList();
+            }
+            Arrays.sort(wavs);
+            List<String> names = new ArrayList<>(wavs.length);
+            for (File file : wavs) {
+                names.add(file.getName());
+            }
+            return names;
+        } catch (URISyntaxException ex) {
+            return Collections.emptyList();
         }
-        return out;
-    }
-
-    /**
-     * Renders a short repeating low thump to evoke marching feet.
-     *
-     * @param volume peak amplitude in [0, 1]
-     * @return the PCM bytes
-     */
-    private byte[] drumPattern(double volume) {
-        double seconds = 0.6;
-        int samples = (int) (SAMPLE_RATE * seconds);
-        byte[] out = new byte[samples * 2];
-        for (int i = 0; i < samples; i++) {
-            double t = i / SAMPLE_RATE;
-            double beat = ((int) (t * 4)) % 2 == 0 ? 1.0 : 0.0;
-            double envelope = Math.exp(-12.0 * (t - Math.floor(t * 4) / 4));
-            double sample = Math.sin(2 * Math.PI * 90.0 * t) * volume * beat * envelope;
-            writeSample(out, i, sample);
-        }
-        return out;
-    }
-
-    /**
-     * Encodes a normalised sample (-1..1) into a little-endian 16-bit slot.
-     *
-     * @param out destination buffer
-     * @param sampleIndex the sample index (the byte offset is {@code 2*sampleIndex})
-     * @param sample the normalised sample value
-     */
-    private void writeSample(byte[] out, int sampleIndex, double sample) {
-        int s = (int) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, sample * Short.MAX_VALUE));
-        out[sampleIndex * 2] = (byte) (s & 0xFF);
-        out[sampleIndex * 2 + 1] = (byte) ((s >> 8) & 0xFF);
-    }
-
-    /**
-     * Enumeration of the available sound effects. Override any of these by
-     * placing a WAV file named after the constant (lower case) in
-     * {@code src/main/resources/sounds/}, e.g. {@code battle_horn.wav}.
-     */
-    public enum Effect {
-        /** A low horn blow used to announce a battle. */
-        BATTLE_HORN,
-        /** A bright triad announcing victory. */
-        VICTORY,
-        /** A subdued low tone used after a defeat. */
-        DEFEAT,
-        /** A short drum loop played during army movement. */
-        MARCH,
-        /** A crisp click for UI actions. */
-        ACTION_CLICK,
-        /** A footstep tick for a single army stepping onto an edge. */
-        STEP,
-        /** A soft ambient drone played on startup. */
-        AMBIENT
     }
 }

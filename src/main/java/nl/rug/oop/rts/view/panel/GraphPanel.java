@@ -1,5 +1,6 @@
 package nl.rug.oop.rts.view.panel;
 
+import lombok.Getter;
 import nl.rug.oop.rts.controller.EditorContext;
 import nl.rug.oop.rts.controller.mouse.GraphMouseHandler;
 import nl.rug.oop.rts.view.renderer.GraphRenderer;
@@ -10,13 +11,14 @@ import java.awt.*;
 /**
  * The drawing surface of the editor.
  * <p>
- * The panel renders the {@link Graph} through a {@link GraphRenderer} and
+ * The panel renders the Graph through a {@link GraphRenderer} and
  * funnels mouse input to a {@link GraphMouseHandler}. It is itself a
  * {@code ModelListener} so that any change in the graph triggers a
  * repaint. As required by the assignment the model is unaware of the
  * panel; the panel subscribes to the model rather than the other way
  * round.
  */
+@Getter
 public class GraphPanel extends JPanel {
 
     /** Serialisation id. */
@@ -70,14 +72,5 @@ public class GraphPanel extends JPanel {
         } finally {
             g2.dispose();
         }
-    }
-
-    /**
-     * Returns the viewport in case the controller needs to reset it.
-     *
-     * @return the viewport
-     */
-    public GraphViewport getViewport() {
-        return viewport;
     }
 }

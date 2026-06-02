@@ -1,8 +1,6 @@
 package nl.rug.oop.rts.controller.mouse;
 
 import nl.rug.oop.rts.controller.EditorContext;
-import nl.rug.oop.rts.model.command.AddEdgeCommand;
-import nl.rug.oop.rts.model.command.MoveNodeCommand;
 import nl.rug.oop.rts.model.graph.Edge;
 import nl.rug.oop.rts.model.graph.Graph;
 import nl.rug.oop.rts.model.graph.Node;
@@ -25,8 +23,8 @@ import java.awt.geom.Point2D;
  *       also create the edge to that node;</li>
  *   <li>left-click on an edge to select that edge;</li>
  *   <li>left-click on empty space to deselect;</li>
- *   <li>drag a selected node to move it (a single {@link MoveNodeCommand}
- *       is recorded on release, not on every mouse event);</li>
+ *   <li>drag a selected node to move it (a single move command is recorded
+ *       on release, not on every mouse event);</li>
  *   <li>drag empty space to pan the viewport;</li>
  *   <li>mouse wheel to zoom around the cursor (bonus feature).</li>
  * </ul>
@@ -92,8 +90,7 @@ public class GraphMouseHandler extends MouseInputAdapter {
             if (context.isAddEdgeMode()) {
                 Node source = graph.getSelectedNode();
                 if (source != null && source != hitNode) {
-                    AddEdgeCommand cmd = new AddEdgeCommand(graph, source, hitNode);
-                    context.getCommandHistory().execute(cmd);
+                    context.addEdge(source, hitNode);
                 }
                 context.setAddEdgeMode(false);
                 graph.setSelectedNode(hitNode);
@@ -141,13 +138,10 @@ public class GraphMouseHandler extends MouseInputAdapter {
             int finalX = draggedNode.getX();
             int finalY = draggedNode.getY();
             if (finalX != dragOriginX || finalY != dragOriginY) {
-                // Undo the live drag and reapply through the command so that
+                // Undo the live drag and reapply through the command facade so
                 // the move can be undone/redone like any other action.
                 draggedNode.setPosition(dragOriginX, dragOriginY);
-                MoveNodeCommand cmd = new MoveNodeCommand(
-                        context.getGraph(), draggedNode,
-                        dragOriginX, dragOriginY, finalX, finalY);
-                context.getCommandHistory().execute(cmd);
+                context.moveNode(draggedNode, dragOriginX, dragOriginY, finalX, finalY);
             }
             draggedNode = null;
         }

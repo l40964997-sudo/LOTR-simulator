@@ -69,7 +69,6 @@ public class MainFrame extends JFrame {
 
         wireSimulatorReporter();
         installPlayerController();
-        SoundManager.getInstance().play(SoundManager.Effect.AMBIENT);
         SoundManager.getInstance().startPlaylist();
 
         pack();
@@ -100,30 +99,10 @@ public class MainFrame extends JFrame {
         bar.add(new JButton(new JsonIoActions.SaveAction(context, this::self)));
         bar.add(new JButton(new JsonIoActions.LoadAction(context, this::self, this::replaceGraph)));
         bar.addSeparator();
-        bar.add(buildSoundToggle());
         bar.add(buildMusicToggle());
         bar.add(buildNextTrackButton());
         bar.add(buildShuffleToggle());
         return bar;
-    }
-
-    /**
-     * Builds the sound-on/off toggle for the toolbar.
-     *
-     * @return the configured toggle button
-     */
-    private JToggleButton buildSoundToggle() {
-        JToggleButton toggle = new JToggleButton("Sound On", SoundManager.getInstance().isEnabled());
-        toggle.addActionListener(e -> {
-            boolean on = toggle.isSelected();
-            SoundManager.getInstance().setEnabled(on);
-            toggle.setText(on ? "Sound On" : "Sound Off");
-            if (on) {
-                // Audible confirmation that the audio pipeline works.
-                SoundManager.getInstance().play(SoundManager.Effect.BATTLE_HORN);
-            }
-        });
-        return toggle;
     }
 
     /**

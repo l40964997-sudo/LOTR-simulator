@@ -1,9 +1,6 @@
 package nl.rug.oop.rts.controller.action;
 
 import nl.rug.oop.rts.controller.EditorContext;
-import nl.rug.oop.rts.model.command.AddNodeCommand;
-import nl.rug.oop.rts.model.command.RemoveEdgeCommand;
-import nl.rug.oop.rts.model.command.RemoveNodeCommand;
 
 import java.awt.event.ActionEvent;
 import java.util.Random;
@@ -50,7 +47,7 @@ public final class EditorActions {
         public void actionPerformed(ActionEvent e) {
             int x = 200 + random.nextInt(400);
             int y = 150 + random.nextInt(300);
-            context.getCommandHistory().execute(new AddNodeCommand(context.getGraph(), x, y));
+            context.addNode(x, y);
         }
     }
 
@@ -74,11 +71,7 @@ public final class EditorActions {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (context.getGraph().getSelectedNode() != null) {
-                context.getCommandHistory().execute(
-                        new RemoveNodeCommand(context.getGraph(),
-                                context.getGraph().getSelectedNode()));
-            }
+            context.removeNode(context.getGraph().getSelectedNode());
         }
     }
 
@@ -126,11 +119,7 @@ public final class EditorActions {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (context.getGraph().getSelectedEdge() != null) {
-                context.getCommandHistory().execute(
-                        new RemoveEdgeCommand(context.getGraph(),
-                                context.getGraph().getSelectedEdge()));
-            }
+            context.removeEdge(context.getGraph().getSelectedEdge());
         }
     }
 
@@ -173,12 +162,12 @@ public final class EditorActions {
 
         @Override
         protected boolean computeEnabled() {
-            return context.getCommandHistory().canUndo();
+            return context.canUndo();
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            context.getCommandHistory().undo();
+            context.undo();
         }
     }
 
@@ -197,12 +186,12 @@ public final class EditorActions {
 
         @Override
         protected boolean computeEnabled() {
-            return context.getCommandHistory().canRedo();
+            return context.canRedo();
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            context.getCommandHistory().redo();
+            context.redo();
         }
     }
 }

@@ -1,5 +1,7 @@
 package nl.rug.oop.rts.view.panel;
 
+import lombok.Getter;
+
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -18,6 +20,7 @@ import java.awt.geom.Point2D;
  * viewport because the rate of mouse-driven changes would otherwise spam
  * model events that the model layer does not need to hear about.
  */
+@Getter
 public class GraphViewport {
 
     /** Smallest allowed zoom factor (5%). */
@@ -92,15 +95,6 @@ public class GraphViewport {
         offsetX = anchor.x - (anchor.x - offsetX) * (newZoom / oldZoom);
         offsetY = anchor.y - (anchor.y - offsetY) * (newZoom / oldZoom);
         zoom = newZoom;
-    }
-
-    /**
-     * Returns the zoom factor.
-     *
-     * @return the current uniform zoom
-     */
-    public double getZoom() {
-        return zoom;
     }
 
     /**

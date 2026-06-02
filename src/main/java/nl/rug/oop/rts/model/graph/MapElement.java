@@ -1,5 +1,6 @@
 package nl.rug.oop.rts.model.graph;
 
+import lombok.Getter;
 import nl.rug.oop.rts.model.army.Army;
 import nl.rug.oop.rts.model.event.GameEvent;
 
@@ -25,6 +26,7 @@ import java.util.List;
  * free to keep separate collections because the two element kinds still
  * play different structural roles.
  */
+@Getter
 public abstract class MapElement {
 
     /** Unique identifier within its element kind (node or edge). */
@@ -51,24 +53,6 @@ public abstract class MapElement {
         // avoid the "this-escape" pitfall. Subclasses can replace a blank
         // name in their own constructors if they wish.
         this.name = (name == null || name.isBlank()) ? "Element" + id : name;
-    }
-
-    /**
-     * Returns this element's id.
-     *
-     * @return the unique id
-     */
-    public int getId() {
-        return id;
-    }
-
-    /**
-     * Returns this element's display name.
-     *
-     * @return the name
-     */
-    public String getName() {
-        return name;
     }
 
     /**
