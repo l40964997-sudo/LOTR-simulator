@@ -140,10 +140,20 @@ public class JsonReader {
      * @return the created node
      */
     private Node readNode(Graph graph, Map<String, Object> nodeMap) {
-        // Coordinates are not part of the JSON spec, so lay nodes out on a
-        // simple grid by insertion order for post-load inspection.
-        int idx = graph.getNodes().size();
-        Node node = graph.addNode(80 + (idx % 5) * 140, 80 + (idx / 5) * 120);
+        Object xObj = nodeMap.get("X");
+        Object yObj = nodeMap.get("Y");
+        int x;
+        int y;
+        if (xObj instanceof Number xNum && yObj instanceof Number yNum) {
+            x = xNum.intValue();
+            y = yNum.intValue();
+        } else {
+            // Older save without coordinates: lay out on a grid by insertion order.
+            int idx = graph.getNodes().size();
+            x = 80 + (idx % 5) * 140;
+            y = 80 + (idx / 5) * 120;
+        }
+        Node node = graph.addNode(x, y);
         Object nameObj = nodeMap.get(KEY_NAME);
         if (nameObj instanceof String name) {
             node.setName(name);

@@ -1,5 +1,7 @@
 package nl.rug.oop.rts.model.graph;
 
+import lombok.Getter;
+
 /**
  * Terrain type of a route between two settlements.
  * <p>
@@ -10,6 +12,7 @@ package nl.rug.oop.rts.model.graph;
  * simulation logic a place to hang per-terrain rules (e.g. cavalry
  * penalty in mountains) without churning the model again.
  */
+@Getter
 public enum EdgeType {
 
     /** River, lake or sea route. */
@@ -37,15 +40,6 @@ public enum EdgeType {
      */
     EdgeType(String displayName) {
         this.displayName = displayName;
-    }
-
-    /**
-     * Returns the user-visible label for this terrain type.
-     *
-     * @return the display name
-     */
-    public String getDisplayName() {
-        return displayName;
     }
 
     @Override

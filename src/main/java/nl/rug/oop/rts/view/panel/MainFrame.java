@@ -15,6 +15,7 @@ import nl.rug.oop.rts.view.dialog.PlayerOrderDialog;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 
 /**
  * The main application window.
@@ -42,6 +43,9 @@ public class MainFrame extends JFrame {
 
     /** Reference to the side panel so we can replace it on load. */
     private SidePanel sidePanel;
+
+    /** File the editor is currently editing; {@code null} until first save/load. */
+    private File currentFile;
 
     /**
      * Constructs the main frame.
@@ -96,8 +100,12 @@ public class MainFrame extends JFrame {
         bar.add(new JButton(new EditorActions.UndoAction(context)));
         bar.add(new JButton(new EditorActions.RedoAction(context)));
         bar.addSeparator();
-        bar.add(new JButton(new JsonIoActions.SaveAction(context, this::self)));
-        bar.add(new JButton(new JsonIoActions.LoadAction(context, this::self, this::replaceGraph)));
+        bar.add(new JButton(new JsonIoActions.SaveCurrentAction(
+                context, this::self, this::getCurrentFile, this::setCurrentFile)));
+        bar.add(new JButton(new JsonIoActions.SaveAction(
+                context, this::self, this::setCurrentFile)));
+        bar.add(new JButton(new JsonIoActions.LoadAction(
+                context, this::self, this::replaceGraph, this::setCurrentFile)));
         bar.addSeparator();
         bar.add(buildMusicToggle());
         bar.add(buildNextTrackButton());
@@ -157,6 +165,26 @@ public class MainFrame extends JFrame {
      */
     private JFrame self() {
         return this;
+    }
+
+    /**
+     * Returns the file currently being edited, or {@code null} when the
+     * editor is still working on an unsaved fresh session.
+     *
+     * @return the tracked file, or {@code null}
+     */
+    private File getCurrentFile() {
+        return currentFile;
+    }
+
+    /**
+     * Records the file the editor is now tracking. Called after a successful
+     * save or load so the in-place "Save" button knows where to write next.
+     *
+     * @param file the file to remember
+     */
+    private void setCurrentFile(File file) {
+        this.currentFile = file;
     }
 
     /**
@@ -263,9 +291,95 @@ public class MainFrame extends JFrame {
             String text = buffer.toString();
             buffer.setLength(0);
             if (!text.isBlank()) {
-                JOptionPane.showMessageDialog(owner, text,
-                        "Step report", JOptionPane.INFORMATION_MESSAGE);
+                showStepReport(owner, text);
             }
+        }
+
+        /**
+         * Shows a step report in a dark-themed, centered, larger-font dialog.
+         *
+         * @param owner the parent frame
+         * @param text the narrative text to display
+         */
+        private static void showStepReport(JFrame owner, String text) {
+            JDialog dialog = new JDialog(owner, "", true);
+            dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+            JPanel content = new JPanel(new BorderLayout(0, 12));
+            content.setBackground(Color.BLACK);
+            content.setBorder(BorderFactory.createEmptyBorder(24, 28, 18, 28));
+            content.add(buildScrollableLabel(text), BorderLayout.CENTER);
+
+            JButton ok = buildOkButton(dialog);
+            JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            buttonRow.setBackground(Color.BLACK);
+            buttonRow.add(ok);
+            content.add(buttonRow, BorderLayout.SOUTH);
+
+            dialog.setContentPane(content);
+            dialog.pack();
+            Dimension size = dialog.getSize();
+            dialog.setSize(Math.min(size.width, 640), Math.min(size.height, 480));
+            dialog.setLocationRelativeTo(owner);
+            dialog.getRootPane().setDefaultButton(ok);
+            dialog.setVisible(true);
+        }
+
+        /**
+         * Builds the centered, white-on-black narrative label wrapped in a
+         * borderless scroll pane so long reports remain scrollable.
+         *
+         * @param text the narrative text
+         * @return the scroll pane containing the styled label
+         */
+        private static JScrollPane buildScrollableLabel(String text) {
+            String body = escapeHtml(text).replace("\n", "<br>");
+            JLabel label = new JLabel(
+                    "<html><div style='text-align:center;'>" + body + "</div></html>");
+            label.setForeground(Color.WHITE);
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            label.setFont(label.getFont().deriveFont(Font.PLAIN, 18f));
+
+            JScrollPane scroll = new JScrollPane(label);
+            scroll.setBorder(BorderFactory.createEmptyBorder());
+            scroll.setBackground(Color.BLACK);
+            scroll.getViewport().setBackground(Color.BLACK);
+            return scroll;
+        }
+
+        /**
+         * Builds the OK button styled to match the dark dialog theme.
+         *
+         * @param dialog the parent dialog disposed on click
+         * @return the styled button
+         */
+        private static JButton buildOkButton(JDialog dialog) {
+            JButton ok = new JButton("OK");
+            ok.setFocusPainted(false);
+            ok.setBackground(Color.BLACK);
+            ok.setForeground(Color.WHITE);
+            ok.setFont(ok.getFont().deriveFont(Font.PLAIN, 15f));
+            ok.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Color.WHITE, 1),
+                    BorderFactory.createEmptyBorder(6, 22, 6, 22)));
+            ok.setContentAreaFilled(false);
+            ok.setOpaque(true);
+            ok.addActionListener(e -> dialog.dispose());
+            return ok;
+        }
+
+        /**
+         * Minimal HTML escape so user-supplied narrative text renders safely
+         * inside the centered JLabel.
+         *
+         * @param s raw text
+         * @return HTML-safe text
+         */
+        private static String escapeHtml(String s) {
+            return s.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;");
         }
     }
 }

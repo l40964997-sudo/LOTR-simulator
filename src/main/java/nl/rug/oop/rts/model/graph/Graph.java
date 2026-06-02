@@ -254,8 +254,6 @@ public class Graph extends Observable {
         notifyListeners(ModelEvent.Type.SELECTION);
     }
 
-    /* ===================== Notification escalations ===================== */
-
     /**
      * Fires a generic ARMY notification. Called by controllers and
      * commands after they mutate army state, so the view repaints.

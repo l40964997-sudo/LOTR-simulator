@@ -28,8 +28,9 @@ import java.util.Map;
  * the settlement's <em>home</em> faction fortress sprite (driven by
  * {@link Node#getFaction()} - never by whichever army happens to occupy
  * the spot), and the clash effect over locations where two opposing teams
- * meet. Armies deliberately have no on-map picture: their presence is
- * surfaced through the side panel only.</p>
+ * meet. A small army-count badge is drawn over any node or edge that
+ * hosts at least one army, so the map can be read at a glance without
+ * opening the side panel.</p>
  *
  * <p>The renderer paints in screen coordinates after the caller has applied
  * the viewport transform, so the panel stays the single source of truth for
@@ -72,6 +73,12 @@ public class GraphRenderer {
 
     /** Edge colour when selected. */
     private static final Color EDGE_COLOR_SELECTED = new Color(0xF7B538);
+
+    /** Army-count badge fill colour. */
+    private static final Color ARMY_BADGE_FILL = new Color(0x2A3D5C);
+
+    /** Diameter in pixels of the army-count badge. */
+    private static final int ARMY_BADGE_SIZE = 16;
 
     /** Size in pixels of the tiled fallback background cells. */
     private static final int MAP_TILE = 256;
@@ -229,6 +236,9 @@ public class GraphRenderer {
         if (hasClash(edge.getArmies())) {
             drawClash(g2, mx, my);
         }
+        drawArmyBadge(g2, edge.getArmies(),
+                mx - ARMY_BADGE_SIZE / 2,
+                my - NODE_RADIUS / 2 - ARMY_BADGE_SIZE);
     }
 
     /**
@@ -266,6 +276,9 @@ public class GraphRenderer {
             drawClash(g2, x, y);
         }
         drawEventBadge(g2, node, x, y);
+        drawArmyBadge(g2, node.getArmies(),
+                x - NODE_RADIUS - ARMY_BADGE_SIZE / 2 + 2,
+                y - NODE_RADIUS - 2);
     }
 
     /**
@@ -332,6 +345,32 @@ public class GraphRenderer {
         g2.setColor(Color.BLACK);
         g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 10f));
         g2.drawString(String.valueOf(node.getEvents().size()), x + NODE_RADIUS - 2, y - NODE_RADIUS + 9);
+    }
+
+    /**
+     * Draws a small army-count badge on top of a node or edge whenever at
+     * least one army is present. The badge sits well inside the node
+     * radius so it never covers the fortress silhouette underneath.
+     *
+     * @param g2 the graphics surface
+     * @param armies the armies present at the location
+     * @param bx top-left x of the badge
+     * @param by top-left y of the badge
+     */
+    private void drawArmyBadge(Graphics2D g2, List<Army> armies, int bx, int by) {
+        if (armies == null || armies.isEmpty()) {
+            return;
+        }
+        g2.setColor(ARMY_BADGE_FILL);
+        g2.fillOval(bx, by, ARMY_BADGE_SIZE, ARMY_BADGE_SIZE);
+        g2.setColor(NODE_OUTLINE);
+        g2.drawOval(bx, by, ARMY_BADGE_SIZE, ARMY_BADGE_SIZE);
+        String text = String.valueOf(armies.size());
+        g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 10f));
+        int textWidth = g2.getFontMetrics().stringWidth(text);
+        g2.drawString(text,
+                bx + (ARMY_BADGE_SIZE - textWidth) / 2,
+                by + ARMY_BADGE_SIZE - 4);
     }
 
     /**

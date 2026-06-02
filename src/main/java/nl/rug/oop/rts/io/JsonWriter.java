@@ -186,6 +186,10 @@ public class JsonWriter {
         appendLineComma();
         writeStringField("Name", node.getName());
         appendLineComma();
+        writeNumberField("X", node.getX());
+        appendLineComma();
+        writeNumberField("Y", node.getY());
+        appendLineComma();
         writeArmiesArray("Armies", node.getArmies());
         appendLineComma();
         writeEventsArray(node);
