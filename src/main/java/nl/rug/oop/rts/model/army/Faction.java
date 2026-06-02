@@ -142,6 +142,24 @@ public enum Faction {
     }
 
     /**
+     * Returns the canonical Tolkien language spoken by this faction. Used as
+     * a sensible default for new settlements belonging to the faction.
+     *
+     * @return the language name
+     */
+    public String defaultLanguage() {
+        switch (this) {
+            case MEN: return "Westron";
+            case ELVES: return "Sindarin";
+            case DWARVES: return "Khuzdul";
+            case HOBBITS: return "Hobbitish";
+            case MORDOR: return "Black Speech";
+            case ISENGARD: return "Common Orcish";
+            default: return "Westron";
+        }
+    }
+
+    /**
      * Finds a faction by its display name. The comparison is case insensitive
      * so that the JSON deserialisation logic does not have to normalise the
      * input.

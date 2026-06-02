@@ -7,9 +7,9 @@ import nl.rug.oop.rts.model.army.Faction;
 import nl.rug.oop.rts.model.event.EventFactory;
 import nl.rug.oop.rts.model.event.GameEvent;
 import nl.rug.oop.rts.model.graph.Edge;
+import nl.rug.oop.rts.model.graph.EdgeType;
 import nl.rug.oop.rts.model.graph.MapElement;
 import nl.rug.oop.rts.model.graph.Node;
-import nl.rug.oop.rts.util.TextureLoader;
 import nl.rug.oop.rts.view.dialog.ArmyBuilderDialog;
 import nl.rug.oop.rts.view.dialog.UnitInfoDialog;
 
@@ -17,8 +17,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 /**
  * The right-hand options menu shown alongside the graph editor.
@@ -55,14 +53,11 @@ public class SidePanel extends JPanel {
     /** Label shown on the control toggle when an army is player controlled. */
     private static final String RELEASE_LABEL = "Release";
 
-    /** Pixel size for the faction emblems shown in the section banner. */
-    private static final int BANNER_SPRITE = 36;
-
-    /** Pixel size for the fortress sprite shown next to a held location. */
-    private static final int BANNER_FORTRESS = 56;
-
     /** The editor context backing this panel. */
     private final EditorContext context;
+
+    /** Factory for the settlement detail card shown on node menus. */
+    private final SettlementCard settlementCard;
 
     /**
      * Constructs the side panel and subscribes it to the model.
@@ -74,6 +69,7 @@ public class SidePanel extends JPanel {
             throw new IllegalArgumentException("context must not be null");
         }
         this.context = context;
+        this.settlementCard = new SettlementCard(context);
         setLayout(new BorderLayout());
         setPreferredSize(new Dimension(260, 600));
         setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -129,8 +125,9 @@ public class SidePanel extends JPanel {
     private Component buildNodeMenu(Node node) {
         JPanel panel = makeSectionPanel();
         panel.add(makeHeader("Location"));
-        panel.add(makeFactionBanner(node, true));
         panel.add(makeNameEditor(node));
+        panel.add(Box.createVerticalStrut(8));
+        panel.add(makeSettlementSection(node));
         panel.add(Box.createVerticalStrut(8));
         panel.add(makeEventsSection(node));
         panel.add(Box.createVerticalStrut(8));
@@ -148,17 +145,41 @@ public class SidePanel extends JPanel {
     private Component buildEdgeMenu(Edge edge) {
         JPanel panel = makeSectionPanel();
         panel.add(makeHeader("Route"));
-        panel.add(makeFactionBanner(edge, false));
         panel.add(makeNameEditor(edge));
         panel.add(Box.createVerticalStrut(4));
         panel.add(makeEndpointLabel("From: " + edge.getNodeA().getName()));
         panel.add(makeEndpointLabel("To: " + edge.getNodeB().getName()));
         panel.add(Box.createVerticalStrut(8));
-        panel.add(makeEventsSection(edge));
-        panel.add(Box.createVerticalStrut(8));
-        panel.add(makeArmiesSection(edge));
+        panel.add(makeTerrainSection(edge));
         panel.add(Box.createVerticalGlue());
         return new JScrollPane(panel);
+    }
+
+    /**
+     * Builds the terrain section for an edge: a single combo box letting
+     * the user classify the route as Water, Wood, Mountain, Caves or
+     * Desert. Commits straight to the model and fires a structural change
+     * so any listeners refresh.
+     *
+     * @param edge the selected edge
+     * @return the section component
+     */
+    private Component makeTerrainSection(Edge edge) {
+        JPanel panel = makeSectionPanel();
+        panel.add(makeSubHeader("Terrain"));
+        JComboBox<EdgeType> picker = new JComboBox<>(EdgeType.values());
+        picker.setSelectedItem(edge.getEdgeType());
+        picker.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        picker.setAlignmentX(Component.LEFT_ALIGNMENT);
+        picker.addActionListener(action -> {
+            EdgeType picked = (EdgeType) picker.getSelectedItem();
+            if (picked != null && picked != edge.getEdgeType()) {
+                edge.setEdgeType(picked);
+                context.getGraph().fireStructureChanged();
+            }
+        });
+        panel.add(picker);
+        return panel;
     }
 
     /**
@@ -215,81 +236,17 @@ public class SidePanel extends JPanel {
     }
 
     /**
-     * Builds a banner showing the larger faction sprites for every army at
-     * the element, plus a fortress sprite when a single faction holds the
-     * location. Returns a small placeholder strip when nothing is present so
-     * the surrounding layout stays consistent.
+     * Builds the settlement details section: header plus the card produced
+     * by {@link SettlementCard}.
      *
-     * @param element the selected node or edge
-     * @param includeFortress whether to draw the fortress sprite for held nodes
-     * @return the banner component, left-aligned
+     * @param node the selected node
+     * @return the section component
      */
-    private Component makeFactionBanner(MapElement element, boolean includeFortress) {
-        JPanel banner = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
-        banner.setOpaque(false);
-        banner.setAlignmentX(Component.LEFT_ALIGNMENT);
-        banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, BANNER_FORTRESS + 12));
-        if (element.getArmies().isEmpty()) {
-            JLabel empty = new JLabel("(no armies here)");
-            empty.setForeground(Color.GRAY);
-            banner.add(empty);
-            return banner;
-        }
-        if (includeFortress) {
-            Faction holder = soleHolder(element);
-            if (holder != null) {
-                banner.add(makeSprite("fortress" + holder.textureKey(), BANNER_FORTRESS));
-            }
-        }
-        for (Faction faction : presentFactions(element)) {
-            banner.add(makeSprite("faction" + faction.textureKey(), BANNER_SPRITE));
-        }
-        return banner;
-    }
-
-    /**
-     * Returns the distinct factions present at the element, in insertion
-     * order so the banner is stable across rebuilds.
-     *
-     * @param element the selected element
-     * @return an ordered set of factions present
-     */
-    private Set<Faction> presentFactions(MapElement element) {
-        Set<Faction> seen = new LinkedHashSet<>();
-        for (Army army : element.getArmies()) {
-            seen.add(army.getFaction());
-        }
-        return seen;
-    }
-
-    /**
-     * Returns the single faction holding the element, or {@code null} when
-     * the location is empty or contested by multiple factions/teams.
-     *
-     * @param element the selected element
-     * @return the lone holder, or {@code null}
-     */
-    private Faction soleHolder(MapElement element) {
-        Set<Faction> factions = presentFactions(element);
-        return factions.size() == 1 ? factions.iterator().next() : null;
-    }
-
-    /**
-     * Loads a texture by key and wraps it in a {@code JLabel} sized for the
-     * banner. The texture loader handles caching, so requesting the same
-     * sprite repeatedly is cheap.
-     *
-     * @param key the texture key (e.g. {@code "factionMen"})
-     * @param size the side length in pixels
-     * @return a label rendering the sprite
-     */
-    private JLabel makeSprite(String key, int size) {
-        Image image = TextureLoader.getInstance().getTexture(key, size, size);
-        // Force synchronous load: getScaledInstance returns asynchronously.
-        ImageIcon icon = new ImageIcon(image);
-        JLabel label = new JLabel(icon);
-        label.setPreferredSize(new Dimension(size, size));
-        return label;
+    private Component makeSettlementSection(Node node) {
+        JPanel panel = makeSectionPanel();
+        panel.add(makeSubHeader("Settlement"));
+        panel.add(settlementCard.build(node));
+        return panel;
     }
 
     /**

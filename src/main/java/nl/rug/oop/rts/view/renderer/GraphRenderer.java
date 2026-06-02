@@ -25,9 +25,11 @@ import java.util.Map;
  *
  * <p>The renderer uses the course-supplied texture pack through
  * {@link TextureLoader}: a tiled map background, a neutral sprite per node,
- * the controlling faction's fortress sprite when a node is held, the small
- * faction emblems for the army chips, and the clash effect over locations
- * where two opposing teams meet.</p>
+ * the settlement's <em>home</em> faction fortress sprite (driven by
+ * {@link Node#getFaction()} - never by whichever army happens to occupy
+ * the spot), and the clash effect over locations where two opposing teams
+ * meet. Armies deliberately have no on-map picture: their presence is
+ * surfaced through the side panel only.</p>
  *
  * <p>The renderer paints in screen coordinates after the caller has applied
  * the viewport transform, so the panel stays the single source of truth for
@@ -36,7 +38,22 @@ import java.util.Map;
 public class GraphRenderer {
 
     /** Visual radius (world units) of a node disk. */
-    public static final int NODE_RADIUS = 32;
+    public static final int NODE_RADIUS = 22;
+
+    /**
+     * Diameter of the fortress sprite layered over a node, as a fraction of
+     * the node diameter. Keeping it a touch larger than the ground tile lets
+     * the fortress silhouette read clearly without hiding the tile entirely.
+     */
+    private static final double FORTRESS_OVERLAY_SCALE = 1.15;
+
+    /**
+     * Hit-test radius used by the mouse handler: matches the visible
+     * fortress overlay so the whole icon is grabbable, even when armies
+     * are stacked above the node.
+     */
+    public static final int NODE_HIT_RADIUS =
+            (int) Math.round(NODE_RADIUS * FORTRESS_OVERLAY_SCALE);
 
     /** Stroke width for the un-selected edges. */
     private static final float EDGE_STROKE_WIDTH = 2.0f;
@@ -64,15 +81,6 @@ public class GraphRenderer {
 
     /** Translucent overlay shade for legibility on top of the map. */
     private static final Color BACKDROP_VEIL = new Color(0, 0, 0, 110);
-
-    /** Size of a single army chip in pixels. */
-    private static final int CHIP_SIZE = 22;
-
-    /** Spacing between army chips. */
-    private static final int CHIP_SPACING = 3;
-
-    /** Maximum chips per row in the multi-army layout. */
-    private static final int CHIPS_PER_ROW = 4;
 
     /** Label font. */
     private static final Font LABEL_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 12);
@@ -200,7 +208,8 @@ public class GraphRenderer {
     }
 
     /**
-     * Draws one edge plus any armies or clash effect on it.
+     * Draws one edge plus the clash effect at its midpoint when two
+     * opposing teams are travelling along it.
      *
      * @param g2 the graphics surface
      * @param edge the edge to draw
@@ -220,7 +229,6 @@ public class GraphRenderer {
         if (hasClash(edge.getArmies())) {
             drawClash(g2, mx, my);
         }
-        drawArmyBadges(g2, edge.getArmies(), mx, my, false);
     }
 
     /**
@@ -237,8 +245,8 @@ public class GraphRenderer {
     }
 
     /**
-     * Draws one node: selection halo, base sprite, label, army chips, clash
-     * overlay and event badge.
+     * Draws one node: selection halo, base sprite, label, clash overlay
+     * (when contested) and the small event-count badge.
      *
      * @param g2 the graphics surface
      * @param node the node to draw
@@ -254,7 +262,6 @@ public class GraphRenderer {
         }
         drawNodeBase(g2, node, x, y, diameter);
         drawNodeLabel(g2, node.getName(), x, y);
-        drawArmyBadges(g2, node.getArmies(), x, y - NODE_RADIUS - 6, true);
         if (hasClash(node.getArmies())) {
             drawClash(g2, x, y);
         }
@@ -262,7 +269,11 @@ public class GraphRenderer {
     }
 
     /**
-     * Draws the node base sprite: a fortress when held, else a node sprite.
+     * Draws the node base: a neutral node tile underneath, then the
+     * settlement's <em>home</em> faction fortress on top. The visible
+     * fortress reflects which realm owns the location, never which army
+     * happens to be standing on it, so capturing a location does not
+     * silently re-skin it.
      *
      * @param g2 the graphics surface
      * @param node the node being drawn
@@ -271,16 +282,20 @@ public class GraphRenderer {
      * @param diameter the sprite diameter
      */
     private void drawNodeBase(Graphics2D g2, Node node, int x, int y, int diameter) {
-        Faction holder = controllingFaction(node.getArmies());
-        // When the node is held by a single faction, draw that faction's
-        // fortress sprite (all five fortress PNGs are wired through the
-        // TextureLoader). Otherwise round-robin through the four neutral
-        // node sprites (node1..node4) so the map shows visual variety.
-        String key = holder != null
-                ? "fortress" + holder.textureKey()
-                : "node" + (Math.floorMod(node.getId(), 4) + 1);
-        Image base = sprite(key, diameter);
-        g2.drawImage(base, x - NODE_RADIUS, y - NODE_RADIUS, null);
+        // Neutral node tile underneath - cycles node1..node4 so all four
+        // ground sprites remain visible across the map.
+        String groundKey = "node" + (Math.floorMod(node.getId(), 4) + 1);
+        Image ground = sprite(groundKey, diameter);
+        g2.drawImage(ground, x - NODE_RADIUS, y - NODE_RADIUS, null);
+
+        // Home faction fortress on top, slightly larger than the ground
+        // tile so its silhouette reads clearly.
+        Faction home = node.getFaction();
+        if (home != null) {
+            int overlay = (int) Math.round(diameter * FORTRESS_OVERLAY_SCALE);
+            Image fortress = sprite("fortress" + home.textureKey(), overlay);
+            g2.drawImage(fortress, x - overlay / 2, y - overlay / 2, null);
+        }
     }
 
     /**
@@ -320,81 +335,6 @@ public class GraphRenderer {
     }
 
     /**
-     * Draws faction emblem chips for every army present at a location.
-     * Chips wrap into multiple rows when more than {@value #CHIPS_PER_ROW}
-     * armies share the spot, so all of them remain visible.
-     *
-     * @param g2 the graphics surface
-     * @param armies the armies to depict
-     * @param cx the centre x of the location
-     * @param cy the reference y of the location
-     * @param above whether the chips sit above the reference point
-     */
-    private void drawArmyBadges(Graphics2D g2, List<Army> armies, int cx, int cy, boolean above) {
-        if (armies == null || armies.isEmpty()) {
-            return;
-        }
-        int n = armies.size();
-        int rows = (n + CHIPS_PER_ROW - 1) / CHIPS_PER_ROW;
-        int rowStep = CHIP_SIZE + CHIP_SPACING;
-        int bottomChipTop = above ? cy - CHIP_SIZE : cy - CHIP_SIZE / 2;
-        for (int i = 0; i < n; i++) {
-            int row = i / CHIPS_PER_ROW;
-            int col = i % CHIPS_PER_ROW;
-            int countInRow = Math.min(CHIPS_PER_ROW, n - row * CHIPS_PER_ROW);
-            int rowWidth = countInRow * (CHIP_SIZE + CHIP_SPACING) - CHIP_SPACING;
-            int x = cx - rowWidth / 2 + col * (CHIP_SIZE + CHIP_SPACING);
-            int y = bottomChipTop - (rows - 1 - row) * rowStep;
-            drawArmyChip(g2, armies.get(i), x, y, CHIP_SIZE);
-        }
-    }
-
-    /**
-     * Draws a single army chip: faction-tinted background ring, emblem,
-     * gold outline for player-controlled armies, and unit count.
-     *
-     * @param g2 the graphics surface
-     * @param army the army to depict
-     * @param x the chip x position
-     * @param y the chip y position
-     * @param chip the chip size in pixels
-     */
-    private void drawArmyChip(Graphics2D g2, Army army, int x, int y, int chip) {
-        Color base = army.getFaction().getColor();
-        g2.setColor(new Color(base.getRed(), base.getGreen(), base.getBlue(), 220));
-        g2.fillOval(x - 2, y - 2, chip + 4, chip + 4);
-        Image emblem = sprite("faction" + army.getFaction().textureKey(), chip);
-        g2.drawImage(emblem, x, y, null);
-        if (army.isPlayerControlled()) {
-            g2.setColor(NODE_HIGHLIGHT);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawOval(x - 2, y - 2, chip + 4, chip + 4);
-        }
-        drawChipCount(g2, army.size(), x, y, chip);
-    }
-
-    /**
-     * Draws the unit-count overlay on a chip.
-     *
-     * @param g2 the graphics surface
-     * @param count the unit count to print
-     * @param x the chip x position
-     * @param y the chip y position
-     * @param chip the chip size in pixels
-     */
-    private void drawChipCount(Graphics2D g2, int count, int x, int y, int chip) {
-        String text = String.valueOf(count);
-        g2.setFont(LABEL_FONT.deriveFont(Font.BOLD, 12f));
-        int textWidth = g2.getFontMetrics().stringWidth(text);
-        int textX = x + (chip - textWidth) / 2;
-        int textY = y + chip - 4;
-        g2.setColor(Color.BLACK);
-        g2.drawString(text, textX + 1, textY + 1);
-        g2.setColor(Color.WHITE);
-        g2.drawString(text, textX, textY);
-    }
-
-    /**
      * Draws the clash effect centred at the given world point.
      *
      * @param g2 the graphics surface
@@ -405,27 +345,6 @@ public class GraphRenderer {
         int size = NODE_RADIUS * 2;
         Image clash = sprite("flash", size);
         g2.drawImage(clash, x - size / 2, y - size / 2, null);
-    }
-
-    /**
-     * Returns the faction that solely controls a location, or {@code null}
-     * if it is empty or contested by both teams.
-     *
-     * @param armies the armies present at the location
-     * @return the controlling faction, or {@code null}
-     */
-    private Faction controllingFaction(List<Army> armies) {
-        if (armies == null || armies.isEmpty()) {
-            return null;
-        }
-        Faction first = armies.get(0).getFaction();
-        int team = armies.get(0).getTeam();
-        for (Army army : armies) {
-            if (army.getTeam() != team) {
-                return null;
-            }
-        }
-        return first;
     }
 
     /**

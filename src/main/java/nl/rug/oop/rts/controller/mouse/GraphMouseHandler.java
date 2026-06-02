@@ -87,19 +87,7 @@ public class GraphMouseHandler extends MouseInputAdapter {
         Graph graph = context.getGraph();
         Node hitNode = pickNode(graph, world);
         if (hitNode != null) {
-            if (context.isAddEdgeMode()) {
-                Node source = graph.getSelectedNode();
-                if (source != null && source != hitNode) {
-                    context.addEdge(source, hitNode);
-                }
-                context.setAddEdgeMode(false);
-                graph.setSelectedNode(hitNode);
-                return;
-            }
-            graph.setSelectedNode(hitNode);
-            draggedNode = hitNode;
-            dragOriginX = hitNode.getX();
-            dragOriginY = hitNode.getY();
+            startNodeInteraction(graph, hitNode);
             return;
         }
         Edge hitEdge = pickEdge(graph, world);
@@ -111,6 +99,29 @@ public class GraphMouseHandler extends MouseInputAdapter {
         graph.clearSelection();
         context.setAddEdgeMode(false);
         panning = true;
+    }
+
+    /**
+     * Handles a left click that landed on a node: completes a pending
+     * "draw route" if active, else selects the node and prepares for a drag.
+     *
+     * @param graph the current graph
+     * @param hitNode the node under the cursor
+     */
+    private void startNodeInteraction(Graph graph, Node hitNode) {
+        if (context.isAddEdgeMode()) {
+            Node source = graph.getSelectedNode();
+            if (source != null && source != hitNode) {
+                context.addEdge(source, hitNode);
+            }
+            context.setAddEdgeMode(false);
+            graph.setSelectedNode(hitNode);
+            return;
+        }
+        graph.setSelectedNode(hitNode);
+        draggedNode = hitNode;
+        dragOriginX = hitNode.getX();
+        dragOriginY = hitNode.getY();
     }
 
     @Override
@@ -166,11 +177,14 @@ public class GraphMouseHandler extends MouseInputAdapter {
      */
     private Node pickNode(Graph graph, Point2D world) {
         // Iterate in reverse so visually top-most nodes are picked first.
+        // Use NODE_HIT_RADIUS (matches the fortress overlay) so the whole
+        // visible icon is grabbable, even when armies are stacked above it.
+        int r = GraphRenderer.NODE_HIT_RADIUS;
         for (int i = graph.getNodes().size() - 1; i >= 0; i--) {
             Node n = graph.getNodes().get(i);
             double dx = world.getX() - n.getX();
             double dy = world.getY() - n.getY();
-            if (dx * dx + dy * dy <= (double) GraphRenderer.NODE_RADIUS * GraphRenderer.NODE_RADIUS) {
+            if (dx * dx + dy * dy <= (double) r * r) {
                 return n;
             }
         }

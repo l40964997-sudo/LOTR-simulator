@@ -1,5 +1,7 @@
 package nl.rug.oop.rts.model.graph;
 
+import nl.rug.oop.rts.model.army.Faction;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +23,12 @@ import java.util.List;
  */
 public class Node extends MapElement {
 
+    /** Default population for a freshly created settlement. */
+    private static final int DEFAULT_POPULATION = 5000;
+
+    /** Default literacy percentage (0-100) for a new settlement. */
+    private static final int DEFAULT_LITERACY = 35;
+
     /** Edges currently incident to this node. */
     private final List<Edge> edges = new ArrayList<>();
 
@@ -29,6 +37,21 @@ public class Node extends MapElement {
 
     /** Y coordinate in graph space. */
     private int y;
+
+    /** Faction the settlement belongs to (its political home, not necessarily the occupier). */
+    private Faction faction = Faction.MEN;
+
+    /** Inhabitant headcount. */
+    private int population = DEFAULT_POPULATION;
+
+    /** Percentage of inhabitants who can read; clamped to [0, 100]. */
+    private int literacy = DEFAULT_LITERACY;
+
+    /** Coarse wealth tier of the settlement. */
+    private Wealth wealth = Wealth.MODEST;
+
+    /** Primary language spoken at the settlement. */
+    private String language = Faction.MEN.defaultLanguage();
 
     /**
      * Constructs a node with explicit coordinates.
@@ -76,6 +99,117 @@ public class Node extends MapElement {
     public void setPosition(int x, int y) {
         this.x = x;
         this.y = y;
+    }
+
+    /**
+     * Returns the faction this settlement belongs to politically.
+     *
+     * @return the faction
+     */
+    public Faction getFaction() {
+        return faction;
+    }
+
+    /**
+     * Updates the settlement's home faction. Also resets the spoken language
+     * to that faction's default if the language has not been customised
+     * (i.e. still matches one of the canonical defaults).
+     *
+     * @param faction the new faction; ignored when {@code null}
+     */
+    public void setFaction(Faction faction) {
+        if (faction == null) {
+            return;
+        }
+        boolean isDefaultLanguage = false;
+        for (Faction f : Faction.values()) {
+            if (f.defaultLanguage().equals(this.language)) {
+                isDefaultLanguage = true;
+                break;
+            }
+        }
+        this.faction = faction;
+        if (isDefaultLanguage) {
+            this.language = faction.defaultLanguage();
+        }
+    }
+
+    /**
+     * Returns the settlement's population.
+     *
+     * @return inhabitant headcount
+     */
+    public int getPopulation() {
+        return population;
+    }
+
+    /**
+     * Sets the settlement's population. Negative values are clamped to zero.
+     *
+     * @param population the new headcount
+     */
+    public void setPopulation(int population) {
+        this.population = Math.max(0, population);
+    }
+
+    /**
+     * Returns the literacy percentage (0-100).
+     *
+     * @return the percentage of inhabitants who can read
+     */
+    public int getLiteracy() {
+        return literacy;
+    }
+
+    /**
+     * Sets the literacy percentage. Values are clamped to [0, 100].
+     *
+     * @param literacy the new percentage
+     */
+    public void setLiteracy(int literacy) {
+        this.literacy = Math.max(0, Math.min(100, literacy));
+    }
+
+    /**
+     * Returns the settlement's wealth tier.
+     *
+     * @return the wealth
+     */
+    public Wealth getWealth() {
+        return wealth;
+    }
+
+    /**
+     * Sets the settlement's wealth tier.
+     *
+     * @param wealth the new wealth tier; ignored when {@code null}
+     */
+    public void setWealth(Wealth wealth) {
+        if (wealth == null) {
+            return;
+        }
+        this.wealth = wealth;
+    }
+
+    /**
+     * Returns the settlement's spoken language.
+     *
+     * @return the language name
+     */
+    public String getLanguage() {
+        return language;
+    }
+
+    /**
+     * Sets the settlement's spoken language. Blank values are ignored.
+     *
+     * @param language the new language
+     */
+    public void setLanguage(String language) {
+        if (language == null || language.isBlank()) {
+            return;
+        }
+        this.language = language;
     }
 
     /**

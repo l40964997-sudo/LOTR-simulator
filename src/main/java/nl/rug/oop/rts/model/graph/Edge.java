@@ -18,6 +18,9 @@ public class Edge extends MapElement {
     /** The second endpoint. */
     private final Node nodeB;
 
+    /** Terrain type of the route; drives the side-panel picker. */
+    private EdgeType edgeType = EdgeType.WOOD;
+
     /**
      * Constructs an edge.
      *
@@ -81,5 +84,27 @@ public class Edge extends MapElement {
      */
     public boolean isIncidentTo(Node node) {
         return node != null && (node == nodeA || node == nodeB);
+    }
+
+    /**
+     * Returns the terrain type of this route.
+     *
+     * @return the edge type
+     */
+    public EdgeType getEdgeType() {
+        return edgeType;
+    }
+
+    /**
+     * Updates the terrain type of this route. {@code null} is ignored so
+     * the field always has a valid value.
+     *
+     * @param edgeType the new terrain type
+     */
+    public void setEdgeType(EdgeType edgeType) {
+        if (edgeType == null) {
+            return;
+        }
+        this.edgeType = edgeType;
     }
 }
