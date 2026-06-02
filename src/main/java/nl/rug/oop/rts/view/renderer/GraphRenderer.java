@@ -239,6 +239,31 @@ public class GraphRenderer {
         drawArmyBadge(g2, edge.getArmies(),
                 mx - ARMY_BADGE_SIZE / 2,
                 my - NODE_RADIUS / 2 - ARMY_BADGE_SIZE);
+        drawEdgeTerrainLabel(g2, edge, mx, my);
+    }
+
+    /**
+     * Draws the terrain name underneath the edge midpoint so the user can
+     * read the route's terrain at a glance.
+     *
+     * @param g2 the graphics surface
+     * @param edge the edge being drawn
+     * @param mx the edge midpoint x
+     * @param my the edge midpoint y
+     */
+    private void drawEdgeTerrainLabel(Graphics2D g2, Edge edge, int mx, int my) {
+        if (edge.getEdgeType() == null) {
+            return;
+        }
+        String label = edge.getEdgeType().getDisplayName();
+        g2.setFont(LABEL_FONT);
+        int textWidth = g2.getFontMetrics().stringWidth(label);
+        int boxX = mx - textWidth / 2 - 4;
+        int boxY = my + NODE_RADIUS / 2;
+        g2.setColor(new Color(0, 0, 0, 140));
+        g2.fillRoundRect(boxX, boxY, textWidth + 8, 16, 8, 8);
+        g2.setColor(NODE_OUTLINE);
+        g2.drawString(label, mx - textWidth / 2, boxY + 12);
     }
 
     /**
