@@ -1,12 +1,19 @@
 # Report
-
-John Doe (s1234567) & Foo Bar (s2345678)
+Jiayi Yang() & Finn Chen (s) & Tiancheng Yang ()
 
 ## Introduction
 
 > *Very briefly describe what your program does.*
  
 >Expected length: ~100 words
+> This program is a Lord of the Rings themed turn-based RTS simulator. 
+> The user designs a map of locations and routes on a graph editor,
+> then populates it with armies drawn from seven factions split across two teams (Free Peoples: Men, Elves, Dwarves, Hobbits;
+> Sauron's Servants: Mordor, Isengard). Each step, every army rolls a random action (Fortify, Rally, Skirmish, ...), advances along a smart-pathing route,
+> may trigger one of nine map events, and resolves any battles in three phases (volley, charge, melee) with morale and rout checks. 
+> The user can take direct control of one army, build custom rosters, undo any edit, save/load to JSON, and hear procedural sound effects plus a looping music playlist.
+
+
 
 ## Program design
 
@@ -20,11 +27,13 @@ John Doe (s1234567) & Foo Bar (s2345678)
 
 > Expected length: as much as you need to explain the above.
 
+
 ## Evaluation of the program
 
 > *Discuss the stability of your implementation. What works well? Are there any bugs? Is everything tested properly? Are there still features that have not been implemented? Also, if you had the time, what improvements would you make to your implementation? Are there things which you would have done completely differently?*
 
 >Expected length: ~300-500 words
+> 
 
 ## Questions
 
@@ -54,7 +63,7 @@ Please provide an example from the assignment on how the Observer pattern suppor
 
 ___
 
-Answer:
+Answer:The Observer pattern is the engine drives the communication between the Model and the View. 
 
 ___
 
