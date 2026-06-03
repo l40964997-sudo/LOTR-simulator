@@ -20,7 +20,7 @@ import java.util.logging.Logger;
 /**
  * Actions that read or write the simulator state to disk.
  * <p>
- * Both actions interact with the user through dialogs, hence the
+ * These actions interact with the user through dialogs, hence the
  * dependency on a {@link JFrame} owner. The owner is supplied lazily so
  * that the action can be wired up before the frame is realised; if
  * the supplier returns {@code null} the dialogs fall back to a non-modal
@@ -84,7 +84,7 @@ public final class JsonIoActions {
     }
 
     /** "To JSON" save-as action. Always enabled; always prompts for a path. */
-    public static class SaveAction extends ModelBoundAction {
+    public static class SaveAsAction extends ModelBoundAction {
         /** Serialisation id. */
         private static final long serialVersionUID = 1L;
 
@@ -101,7 +101,7 @@ public final class JsonIoActions {
          * @param currentFileSink receives the written file so a later "Save"
          *                        can re-use it; may be {@code null}
          */
-        public SaveAction(EditorContext ctx,
+        public SaveAsAction(EditorContext ctx,
                           Supplier<JFrame> ownerSupplier,
                           Consumer<File> currentFileSink) {
             super("To JSON", ctx);
@@ -129,7 +129,7 @@ public final class JsonIoActions {
      * tracking (last loaded or last saved-as). Falls back to a Save-As style
      * chooser the first time the user hits it on a fresh session.
      */
-    public static class SaveCurrentAction extends ModelBoundAction {
+    public static class SaveAction extends ModelBoundAction {
         /** Serialisation id. */
         private static final long serialVersionUID = 1L;
 
@@ -150,7 +150,7 @@ public final class JsonIoActions {
          * @param currentFileSource current target file supplier
          * @param currentFileSink updated with the file actually written
          */
-        public SaveCurrentAction(EditorContext ctx,
+        public SaveAction(EditorContext ctx,
                                  Supplier<JFrame> ownerSupplier,
                                  Supplier<File> currentFileSource,
                                  Consumer<File> currentFileSink) {

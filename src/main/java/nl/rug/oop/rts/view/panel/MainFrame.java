@@ -100,9 +100,9 @@ public class MainFrame extends JFrame {
         bar.add(new JButton(new EditorActions.UndoAction(context)));
         bar.add(new JButton(new EditorActions.RedoAction(context)));
         bar.addSeparator();
-        bar.add(new JButton(new JsonIoActions.SaveCurrentAction(
-                context, this::self, this::getCurrentFile, this::setCurrentFile)));
         bar.add(new JButton(new JsonIoActions.SaveAction(
+                context, this::self, this::getCurrentFile, this::setCurrentFile)));
+        bar.add(new JButton(new JsonIoActions.SaveAsAction(
                 context, this::self, this::setCurrentFile)));
         bar.add(new JButton(new JsonIoActions.LoadAction(
                 context, this::self, this::replaceGraph, this::setCurrentFile)));

@@ -190,6 +190,7 @@ public class JsonWriter {
         appendLineComma();
         writeNumberField("Y", node.getY());
         appendLineComma();
+        writeNodeSettlementFields(node);
         writeArmiesArray("Armies", node.getArmies());
         appendLineComma();
         writeEventsArray(node);
@@ -197,6 +198,27 @@ public class JsonWriter {
         dedent();
         writeIndent();
         buffer.append('}');
+    }
+
+    /**
+     * Writes the settlement-level fields (faction, demographics, wealth,
+     * language) belonging to a node.
+     *
+     * @param node the node being serialised
+     */
+    private void writeNodeSettlementFields(Node node) {
+        writeStringField("Faction",
+                node.getFaction() == null ? "" : node.getFaction().getDisplayName());
+        appendLineComma();
+        writeNumberField("Population", node.getPopulation());
+        appendLineComma();
+        writeNumberField("Literacy", node.getLiteracy());
+        appendLineComma();
+        writeStringField("Wealth",
+                node.getWealth() == null ? "" : node.getWealth().getDisplayName());
+        appendLineComma();
+        writeStringField("Language", node.getLanguage());
+        appendLineComma();
     }
 
     /**
@@ -216,6 +238,9 @@ public class JsonWriter {
         writeNumberField("Node1", edge.getNodeA().getId());
         appendLineComma();
         writeNumberField("Node2", edge.getNodeB().getId());
+        appendLineComma();
+        writeStringField("Terrain",
+                edge.getEdgeType() == null ? "" : edge.getEdgeType().getDisplayName());
         appendLineComma();
         writeArmiesArray("Armies", edge.getArmies());
         appendLineComma();
@@ -297,6 +322,8 @@ public class JsonWriter {
         appendLineComma();
         writeNumberField("Team", army.getTeam());
         appendLineComma();
+        writeBooleanField("PlayerControlled", army.isPlayerControlled());
+        appendLineComma();
         writeUnitsArray(army.getUnits());
         appendNewline();
         dedent();
@@ -372,6 +399,17 @@ public class JsonWriter {
      * @param value the numeric value
      */
     private void writeNumberField(String key, long value) {
+        writeIndent();
+        buffer.append('"').append(escape(key)).append("\": ").append(value);
+    }
+
+    /**
+     * Writes a boolean key/value field.
+     *
+     * @param key the field name
+     * @param value the boolean value
+     */
+    private void writeBooleanField(String key, boolean value) {
         writeIndent();
         buffer.append('"').append(escape(key)).append("\": ").append(value);
     }

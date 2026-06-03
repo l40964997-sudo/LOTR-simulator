@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Enumeration of the seven factions in the simulation.
@@ -22,27 +21,27 @@ import java.util.Objects;
 public enum Faction {
 
     /** Soldiers of Gondor and surrounding kingdoms of Men. */
-    MEN("Men", 0, new Color(0xC9B57C), "Men",
+    MEN("Men", 0, new Color(0xC9B57C), "Men", "Westron",
             "Gondor Soldier", "Tower Guard", "Ithilien Ranger", "Knight of Dol Amroth"),
 
     /** Elven warriors from Lothlorien, Mirkwood, and Rivendell. */
-    ELVES("Elves", 0, new Color(0x8BC4A0), "Elves",
+    ELVES("Elves", 0, new Color(0x8BC4A0), "Elves", "Sindarin",
             "Lorien Warrior", "Mirkwood Archer", "Rivendell Lancer", "Galadhrim Sentinel"),
 
     /** Dwarves of Erebor and the Iron Hills. */
-    DWARVES("Dwarves", 0, new Color(0xB35E27), "Dwarves",
+    DWARVES("Dwarves", 0, new Color(0xB35E27), "Dwarves", "Khuzdul",
             "Guardian", "Phalanx", "Axe Thrower", "Iron Hill Berserker"),
 
     /** The Halflings of the Shire, small but unexpectedly stout-hearted. */
-    HOBBITS("Hobbits", 0, new Color(0x6FA86F), "Men",
+    HOBBITS("Hobbits", 0, new Color(0x6FA86F), "Hobbits", "Hobbitish",
             "Shire Slinger", "Stout Hobbit", "Bounder", "Took Scout"),
 
     /** Sauron's hosts from the Black Land. */
-    MORDOR("Mordor", 1, new Color(0x6C1F1F), "Mordor",
+    MORDOR("Mordor", 1, new Color(0x6C1F1F), "Mordor", "Black Speech",
             "Orc", "Goblin", "Troll", "Man of Darkness"),
 
     /** Saruman's hosts from Isengard. */
-    ISENGARD("Isengard", 1, new Color(0x2F2F2F), "Isengard",
+    ISENGARD("Isengard", 1, new Color(0x2F2F2F), "Isengard", "Common Orcish",
             "Saruman", "Uruk-hai", "Warg Rider", "Uruk Crossbowman");
 
     /** Convenience constant naming team 0 (Free Peoples). */
@@ -62,6 +61,9 @@ public enum Faction {
     /** The unit names this faction is allowed to field. */
     private final List<String> unitNames;
 
+    /** The canonical Tolkien language spoken by this faction. */
+    private final String language;
+
     /**
      * Constructs a faction constant.
      *
@@ -69,13 +71,16 @@ public enum Faction {
      * @param team the team id this faction belongs to
      * @param color the rendering colour
      * @param textureKey the texture key segment, e.g. {@code "Men"}
+     * @param language the canonical Tolkien language this faction speaks
      * @param unitNames the unit names this faction may field
      */
-    Faction(String displayName, int team, Color color, String textureKey, String... unitNames) {
+    Faction(String displayName, int team, Color color, String textureKey,
+            String language, String... unitNames) {
         this.displayName = displayName;
         this.team = team;
         this.color = color;
         this.textureKey = textureKey;
+        this.language = language;
         this.unitNames = Collections.unmodifiableList(Arrays.asList(unitNames));
     }
 
@@ -148,15 +153,7 @@ public enum Faction {
      * @return the language name
      */
     public String defaultLanguage() {
-        switch (this) {
-            case MEN: return "Westron";
-            case ELVES: return "Sindarin";
-            case DWARVES: return "Khuzdul";
-            case HOBBITS: return "Hobbitish";
-            case MORDOR: return "Black Speech";
-            case ISENGARD: return "Common Orcish";
-            default: return "Westron";
-        }
+        return language;
     }
 
     /**
@@ -172,7 +169,7 @@ public enum Faction {
             return null;
         }
         for (Faction f : values()) {
-            if (Objects.equals(f.displayName.toLowerCase(), displayName.toLowerCase())) {
+            if (f.displayName.equalsIgnoreCase(displayName)) {
                 return f;
             }
         }

@@ -46,4 +46,22 @@ public enum EdgeType {
     public String toString() {
         return displayName;
     }
+
+    /**
+     * Looks up an edge type by its user-visible display name.
+     *
+     * @param displayName the display name; may be {@code null}
+     * @return the matching edge type, or {@code null} when not found
+     */
+    public static EdgeType fromDisplayName(String displayName) {
+        if (displayName == null) {
+            return null;
+        }
+        for (EdgeType t : values()) {
+            if (t.displayName.equalsIgnoreCase(displayName)) {
+                return t;
+            }
+        }
+        return null;
+    }
 }

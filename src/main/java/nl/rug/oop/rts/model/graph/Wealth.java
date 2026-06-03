@@ -50,4 +50,22 @@ public enum Wealth {
     public String toString() {
         return displayName;
     }
+
+    /**
+     * Looks up a wealth tier by its user-visible display name.
+     *
+     * @param displayName the display name; may be {@code null}
+     * @return the matching tier, or {@code null} when not found
+     */
+    public static Wealth fromDisplayName(String displayName) {
+        if (displayName == null) {
+            return null;
+        }
+        for (Wealth w : values()) {
+            if (w.displayName.equalsIgnoreCase(displayName)) {
+                return w;
+            }
+        }
+        return null;
+    }
 }

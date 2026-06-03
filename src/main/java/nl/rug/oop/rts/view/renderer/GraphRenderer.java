@@ -92,6 +92,9 @@ public class GraphRenderer {
     /** Label font. */
     private static final Font LABEL_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 12);
 
+    /** Font used for the edge terrain annotation. */
+    private static final Font TERRAIN_FONT = new Font(Font.SERIF, Font.ITALIC, 13);
+
     /** Shared texture loader. */
     private final TextureLoader textures = TextureLoader.getInstance();
 
@@ -256,7 +259,7 @@ public class GraphRenderer {
             return;
         }
         String label = edge.getEdgeType().getDisplayName();
-        g2.setFont(LABEL_FONT);
+        g2.setFont(TERRAIN_FONT);
         int textWidth = g2.getFontMetrics().stringWidth(label);
         int boxX = mx - textWidth / 2 - 4;
         int boxY = my + NODE_RADIUS / 2;

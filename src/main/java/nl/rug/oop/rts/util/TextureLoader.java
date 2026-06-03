@@ -36,12 +36,14 @@ import java.util.Map;
  * <li><strong>factionMen</strong>: images/factions/men.png</li>
  * <li><strong>factionElves</strong>: images/factions/elves.png</li>
  * <li><strong>factionDwarves</strong>: images/factions/dwarves.png</li>
+ * <li><strong>factionHobbits</strong>: images/factions/hobbit.png</li>
  * <li><strong>factionMordor</strong>: images/factions/mordor.png</li>
  * <li><strong>factionIsengard</strong>: images/factions/isengard.png</li>
  *
  * <li><strong>fortressMen</strong>: images/fortress/men.png</li>
  * <li><strong>fortressElves</strong>: images/fortress/elves.png</li>
  * <li><strong>fortressDwarves</strong>: images/fortress/dwarves.png</li>
+ * <li><strong>fortressHobbits</strong>: aliased to images/fortress/men.png</li>
  * <li><strong>fortressMordor</strong>: images/fortress/mordor.png</li>
  * <li><strong>fortressIsengard</strong>: images/fortress/isengard.png</li>
  *
@@ -134,12 +136,17 @@ public class TextureLoader {
         textures.put("factionMen", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "men.png"));
         textures.put("factionElves", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "elves.png"));
         textures.put("factionDwarves", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "dwarves.png"));
+        textures.put("factionHobbits", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "hobbit.png"));
         textures.put("factionMordor", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "mordor.png"));
         textures.put("factionIsengard", getResourceFromPath(TEXTURE_DIR, FACTION_SUB_DIR, "isengard.png"));
 
         textures.put("fortressMen", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "men.png"));
         textures.put("fortressElves", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "elves.png"));
         textures.put("fortressDwarves", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "dwarves.png"));
+        // No dedicated Hobbit fortress sprite yet; alias to Men's so the
+        // map still renders. Drop a fortress/hobbit.png in and swap the
+        // path here when you have one.
+        textures.put("fortressHobbits", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "men.png"));
         textures.put("fortressMordor", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "mordor.png"));
         textures.put("fortressIsengard", getResourceFromPath(TEXTURE_DIR, FORTRESS_SUB_DIR, "isengard.png"));
 
